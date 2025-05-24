@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "429436830660",
+    "project_id": "wordextremist-2e93a",
+    "storage_bucket": "wordextremist-2e93a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:429436830660:android:86d0e62243b489e7229a91",
+        "android_client_info": {
+          "package_name": "com.laurenz.wordextremist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFsE8aDN9MtaDHfeUy0pqQJzx58ZCnnjk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

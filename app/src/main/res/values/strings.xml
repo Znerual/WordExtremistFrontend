@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">WordExtremist</string>
+    <string name="player_1_default_name">Player 1</string>
+    <string name="player_2_default_name">Player 2</string>
+    <string name="initial_mistakes_text">Mistakes: 0/3</string>
+    <string name="initial_round_score">0 - 0</string>
+    <string name="initial_timer_text">Time: 30s</string>
+    <string name="time_up">Time up!</string>
+    <string name="default_prompt_text">BE MORE EXTREME</string>
+    <string name="default_sentence_text">"I slept poorly last night, so today I'm tired."</string>
+    <string name="word_input_hint">Enter your word</string>
+    <string name="submit_word_button">Submit Word</string>
+    <string name="game_services_project_id" translatable="false">wordextremist</string>
+</resources>

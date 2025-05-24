@@ -1,0 +1,164 @@
+package com.laurenz.wordextremist.auth
+
+import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.laurenz.wordextremist.model.UserPublic // Your Kotlin data class for user profile
+import com.laurenz.wordextremist.model.BackendToken // Data class for backend's JWT response
+import com.laurenz.wordextremist.network.ApiClient
+import com.laurenz.wordextremist.network.ServerAuthCodeRequestData // Data class for sending auth code
+import kotlinx.coroutines.launch
+
+// Enum to represent different UI states for authentication (can be reused or expanded)
+enum class AuthPgsStatus { // Renamed for clarity if you have other auth flows
+    IDLE,                 // Initial state, or after sign out
+    PGS_SIGN_IN_ATTEMPTED, // Play Games SDK sign-in was attempted (not necessarily successful yet for backend)
+    BACKEND_AUTH_LOADING, // Exchanging auth code / logging in with backend
+    AUTHENTICATED,        // Successfully authenticated with backend, JWT obtained, currentUser has data
+    ERROR                 // An error occurred
+}
+
+class AuthViewModel : ViewModel() {
+
+    private val _currentUser = MutableLiveData<UserPublic?>()
+    val currentUser: LiveData<UserPublic?> = _currentUser
+
+    // This will store YOUR backend's JWT
+    private val _backendJsonWebToken = MutableLiveData<String?>()
+    val backendJsonWebToken: LiveData<String?> = _backendJsonWebToken
+
+    private val _authStatus = MutableLiveData<AuthPgsStatus>(AuthPgsStatus.IDLE)
+    val authStatus: LiveData<AuthPgsStatus> = _authStatus
+
+    private val _errorMessage = MutableLiveData<String?>()
+    val errorMessage: LiveData<String?> = _errorMessage
+
+    /**
+     * Called by the Activity after a Google Play Games Server Auth Code is obtained.
+     */
+    fun processPgsServerAuthCode(serverAuthCode: String) {
+        if (serverAuthCode.isBlank()) {
+            Log.e("AuthViewModel", "Server Auth Code is blank. Cannot proceed.")
+            _authStatus.postValue(AuthPgsStatus.ERROR)
+            _errorMessage.postValue("Failed to get valid sign-in code from Google.")
+            return
+        }
+
+        if (_authStatus.value == AuthPgsStatus.BACKEND_AUTH_LOADING) {
+            Log.d("AuthViewModel", "Backend authentication already in progress.")
+            return
+        }
+        _authStatus.postValue(AuthPgsStatus.BACKEND_AUTH_LOADING)
+        _errorMessage.postValue(null) // Clear previous errors
+
+        viewModelScope.launch {
+            try {
+                Log.d("AuthViewModel", "Sending PGS Server Auth Code to backend.")
+                // This is where it calls the ApiClient instance's method
+                val response = ApiClient.instance.loginWithPlayGamesServerAuthCode(
+                    ServerAuthCodeRequestData(serverAuthCode)
+                )
+
+                if (response.isSuccessful && response.body() != null) {
+                    val backendTokenResponse = response.body()!!
+                    _backendJsonWebToken.postValue(backendTokenResponse.access_token)
+                    Log.i("AuthViewModel", "Backend JWT obtained successfully.")
+                    fetchMyProfileWithBackendToken(backendTokenResponse.access_token)
+                } else {
+                    // ... error handling ...
+                    clearAuthData()
+                    _authStatus.postValue(AuthPgsStatus.ERROR)
+                }
+            } catch (e: Exception) {
+                // ... error handling ...
+                clearAuthData()
+                _authStatus.postValue(AuthPgsStatus.ERROR)
+            }
+        }
+    }
+
+
+    /**
+     * Fetches the user's profile from *your* backend using *your backend's JWT*.
+     */
+    private fun fetchMyProfileWithBackendToken(backendToken: String) {
+        // _authStatus is already BACKEND_AUTH_LOADING or will be set by caller
+        viewModelScope.launch {
+            try {
+                val authHeader = "Bearer $backendToken"
+                Log.d("AuthViewModel", "Fetching user profile with backend token.")
+                val profileResponse = ApiClient.instance.getMyProfile(authHeader) // Ensure getMyProfile uses backend token
+
+                if (profileResponse.isSuccessful && profileResponse.body() != null) {
+                    val userProfile = profileResponse.body()!!
+                    _currentUser.postValue(userProfile)
+                    _authStatus.postValue(AuthPgsStatus.AUTHENTICATED) // Final success state
+                    Log.i("AuthViewModel", "User profile fetched successfully: ${userProfile.username} (ID: ${userProfile.id})")
+                } else {
+                    val errorMsg = "Failed to fetch profile with backend token: ${profileResponse.code()} - ${profileResponse.errorBody()?.string()}"
+                    Log.e("AuthViewModel", errorMsg)
+                    clearAuthData() // If profile fetch fails, token might be bad or user issue
+                    _authStatus.postValue(AuthPgsStatus.ERROR)
+                    _errorMessage.postValue("Could not fetch user profile. (${profileResponse.code()})")
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Error fetching profile: ${e.message}", e)
+                clearAuthData()
+                _authStatus.postValue(AuthPgsStatus.ERROR)
+                _errorMessage.postValue("Could not connect to server for profile: ${e.localizedMessage}")
+            }
+        }
+    }
+
+
+    /**
+     * Retrieves the authorization header string ("Bearer <your_backend_jwt>").
+     * This should be called when making authenticated API calls to YOUR backend.
+     */
+    fun getAuthHeaderValueForBackend(): String? {
+        return backendJsonWebToken.value?.let { "Bearer $it" }
+    }
+
+    /**
+     * Call when the user explicitly signs out or if a token becomes definitively invalid.
+     */
+    fun signOut() {
+        Log.i("AuthViewModel", "Signing out from backend session.")
+        clearAuthData()
+        // The Activity should also handle PlayGames.getGamesSignInClient(activity).signOut()
+        // This ViewModel can signal that event.
+    }
+
+    private fun clearAuthData() {
+        _currentUser.postValue(null)
+        _backendJsonWebToken.postValue(null)
+        _authStatus.postValue(AuthPgsStatus.IDLE) // Or whatever the signed-out state is
+        _errorMessage.postValue(null)
+    }
+
+
+    /**
+     * Resets the error message, typically after it has been displayed to the user.
+     */
+    fun clearErrorMessage() {
+        _errorMessage.postValue(null)
+    }
+
+    /**
+     *  To be called from Activity when Play Games SDK's isAuthenticated or signIn attempt completes.
+     *  This doesn't mean backend auth is done, just that PGS client-side is ready (or not).
+     */
+    fun onPgsSignInAttempted(isAuthenticated: Boolean) {
+        if (isAuthenticated) {
+            _authStatus.postValue(AuthPgsStatus.PGS_SIGN_IN_ATTEMPTED)
+            // The Activity will then call requestServerSideAccess() and then
+            // authViewModel.processPgsServerAuthCode(authCode)
+        } else {
+            _authStatus.postValue(AuthPgsStatus.ERROR) // Or a more specific PGS_SIGN_IN_FAILED state
+            _errorMessage.postValue("Play Games Sign-In failed or was cancelled by the user.")
+            clearAuthData()
+        }
+    }
+}

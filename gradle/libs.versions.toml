@@ -1,0 +1,70 @@
+[versions]
+agp = "8.10.0"
+kotlin = "2.1.0"
+coroutines = "1.7.3"
+
+# AndroidX
+androidxLifecycle = "2.9.0"
+coreKtx = "1.16.0"
+constraintlayout = "2.2.1"
+appcompat = "1.7.0"
+googleMaterial = "1.12.0"
+
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
+lifecycleRuntimeKtx = "2.9.0"
+activityCompose = "1.10.1"
+composeBom = "2025.05.00"
+
+coreAnimation = "1.0.0"
+
+# Networking
+retrofit = "2.11.0"
+okhttp = "4.12.0" # OkHttp 4.9.3 is older, 4.11.0 or 4.12.0 are more recent stable. Check latest.
+gson = "2.13.1" # Matches retrofit converter, or use a newer standalone Gson if preferred.
+
+playServicesGamesV2 = "20.1.2"
+activity = "1.10.1"
+
+
+
+[libraries]
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" } # Usually managed by Kotlin plugin
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+androidx-lifecycle-viewmodelKtx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "androidxLifecycle" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+google-material = { group = "com.google.android.material", name = "material", version.ref = "googleMaterial" }
+androidx-core-animation = { group = "androidx.core", name = "core-animation", version.ref = "coreAnimation" }
+
+# Networking - Retrofit & OkHttp
+retrofit-core = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+retrofit-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" } # Uses gson version from retrofit usually
+okhttp-core = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+okhttp-loggingInterceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
+gms-play-services-games-v2 = { module = "com.google.android.gms:play-services-games-v2", version.ref = "playServicesGamesV2" }
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+
+
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+
