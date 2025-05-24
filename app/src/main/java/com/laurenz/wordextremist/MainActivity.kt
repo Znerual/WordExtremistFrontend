@@ -1,15 +1,17 @@
 package com.laurenz.wordextremist
 
 // Keep necessary imports, remove unused ones (PlayGames, AuthViewModel etc.)
+// Removed ViewModelProvider
+// Removed PlayGames imports
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
-import android.os.Looper
 import android.content.Intent
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Looper
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.method.ScrollingMovementMethod
@@ -24,13 +26,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-// Removed ViewModelProvider
-// Removed PlayGames imports
 import com.laurenz.wordextremist.databinding.ActivityMainBinding
-import com.laurenz.wordextremist.network.GameWebSocketClient // Import WS Client
-import okhttp3.Response // Import for onFailure callback
-import org.json.JSONException // Import for JSON handling
-import org.json.JSONObject // Import for JSON handling
+import com.laurenz.wordextremist.network.GameWebSocketClient
+import okhttp3.Response
+import org.json.JSONException
+import org.json.JSONObject
 
 // Implement the WebSocket listener interface
 class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListenerCallback {
@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var gameWebSocketClient: GameWebSocketClient? = null
     private var currentGameId: String? = null
     private var currentUserId: Int = -1
+    private var ownUserId: Int = -1
     // Removed currentBackendToken
     // Removed DEBUG constants
 
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // Removed authViewModel initialization
 
         // --- Get Game Info from Intent ---
+        ownUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_OWN_USER_ID, -1)
         currentGameId = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_ID)
         currentUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_USER_ID, -1)
         // Removed backend token retrieval
@@ -80,6 +82,13 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             return
         }
 
+        if (ownUserId == -1) {
+            Log.e("MainActivity", "Own User ID is missing! Cannot start game.")
+            Toast.makeText(this, "Error: Own User ID not found.", Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, LauncherActivity::class.java))
+            return
+        }
+
         Log.i("MainActivity", "Received Game ID: $currentGameId")
 
         // --- Remove All Play Games SDK Initialization and Auth Code Request ---
@@ -88,7 +97,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
         // --- Initialize WebSocket Client ---
         Log.d("MainActivity", "Initializing WebSocket client for game: $currentGameId")
-        gameWebSocketClient = GameWebSocketClient(currentGameId!!, currentUserId, this) // Pass gameId and listener (this)
+        gameWebSocketClient = GameWebSocketClient(currentGameId!!, ownUserId, this) // Pass gameId and listener (this)
         gameWebSocketClient?.connect() // Attempt to connect
 
         // Initialize Game State (basic placeholder)
@@ -111,18 +120,25 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         }
     }
 
-    // Removed requestServerSideAccess function
 
     // Use this for initial setup before server state arrives
     private fun initializePlaceholderGame() {
-        val p1 = PlayerState(id = "player1", name = "You") // Use a local ID convention
-        val p2 = PlayerState(id = "player2", name = "Opponent") // Use a local ID convention
+        val p1 = PlayerState("", "You", 0, 0) // Local player
+        val p2 = PlayerState("", "Opponent", 0, 0) // Opponent
+
         gameState = GameState(
             player1 = p1,
             player2 = p2,
+            PlayerTurn.PLAYER_1,
+            1,
+            3,
             currentSentence = "Waiting for server...",
             currentPrompt = "...",
-            wordToReplace = ""
+            wordToReplace = "",
+            mutableListOf(),
+            mutableListOf(),
+            mutableSetOf(),
+            true
         )
         gameState.resetRoundMistakesAndWords()
         // Assume Player 1 starts initially, server message should confirm/correct this
@@ -185,6 +201,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                     "game_start" -> handleGameStart(message.getJSONObject("payload"))
                     "opponent_action" -> handleOpponentAction(message.getJSONObject("payload"))
                     "validation_result" -> handleValidationResultFromServer(message.getJSONObject("payload"))
+                    "opponent_turn_ended" -> handleOpponentTurnEnded(message.getJSONObject("payload"))
                     "round_over" -> handleRoundOverFromServer(message.getJSONObject("payload"))
                     "game_over" -> handleGameOverFromServer(message.getJSONObject("payload"))
                     "error" -> handleErrorFromServer(message.optString("message", "Unknown server error"))
@@ -238,7 +255,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.d("MainActivity_WS", "Handling game state update: $payload")
         // This is crucial: Parse the full state from the server and update local gameState
         try {
-            gameState.updateFromJson(payload)
+            gameState.updateFromJson(payload, ownUserId.toString())
 
             updateUI() // Refresh the entire UI based on the new state
             handleTurnStart() // Start timer etc. if it's now our turn
@@ -254,10 +271,10 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // Often combined with the first game_state message
         handleGameStateUpdate(payload) // Process initial state
         // Explicitly mark as not waiting if it's our turn
-        if (gameState.currentPlayerTurn == PlayerTurn.PLAYER_1) {
-            gameState.isWaitingForOpponent = false
-            updateUI()
-            startNewTurnTimer()
+        if (gameState.isWaitingForOpponent) {
+            Log.w("MainActivity_WS", "After game_start and state update, still waiting for opponent. Check payload and GameState.updateFromJson logic. Is 'game_active:true' and player IDs present in payload? Current turn: " + gameState.currentPlayerTurn);
+        } else {
+            Log.i("MainActivity_WS", "Game started successfully! isWaitingForOpponent is false.");
         }
     }
 
@@ -326,6 +343,57 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         }
     }
 
+    private fun handleOpponentTurnEnded(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling opponent turn ended: $payload")
+        try {
+            val opponentWord = payload.getString("opponent_played_word")
+
+            // boolean opponentWordIsValid = payload.getBoolean("opponent_word_is_valid"); // Already implied true by this message type
+
+            // The payload for "opponent_turn_ended" IS the new full game state
+            // from the perspective of the player whose turn it now is.
+            gameState.updateFromJson(
+                payload,
+                ownUserId.toString()
+            ) // CRITICAL: Update with the full state
+
+            // Animate opponent's word to their box
+            // We need to know which player is the opponent for animation.
+            // Since updateFromJson just ran, gameState.player2 is the opponent.
+            if (gameState.player2.serverId.length > 0) { // Check if opponent exists
+                animateWordToBox(
+                    opponentWord,
+                    binding.textViewPlayer2PlayedWords,
+                    false
+                ) // false = not Player 1's word
+
+            } else {
+                Log.w(
+                    "MainActivity_WS",
+                    "Cannot animate opponent word, gameState.player2 is null or has no serverId."
+                )
+            }
+
+
+            // Now that the opponent has played THEIR turn and it's successfully ended,
+            // enable emojis for THIS player to react.
+            setEmojiButtonsEnabled(true)
+
+            updateUI() // Refresh UI with the new state (now our turn)
+            handleTurnStart() // This will start our timer, enable input, and importantly,
+
+            // *disable* emojis again because it's our turn to type.
+            // The window to use emojis is brief, right after this handler.
+        } catch (e: JSONException) {
+            Log.e("MainActivity_WS", "Error parsing opponent_turn_ended payload", e)
+        } catch (e: java.lang.Exception) {
+            Log.e(
+                "MainActivity_WS",
+                "Error processing opponent_turn_ended message: $payload", e
+            )
+        }
+    }
+
     private fun handleRoundOverFromServer(payload: JSONObject) {
         Log.i("MainActivity_WS", "Handling round_over: $payload")
         cancelTimer()
@@ -337,8 +405,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         gameState.player2.score = p2Score
 
         val roundWinner = when(winnerId) {
-            gameState.player1.id -> gameState.player1
-            gameState.player2.id -> gameState.player2
+            gameState.player1.serverId -> gameState.player1
+            gameState.player2.serverId -> gameState.player2
             else -> null
         }
 
@@ -369,8 +437,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         gameState.player2.score = p2Score
 
         val gameWinner = when(winnerId) {
-            gameState.player1.id -> gameState.player1
-            gameState.player2.id -> gameState.player2
+            gameState.player1.serverId -> gameState.player1
+            gameState.player2.serverId -> gameState.player2
             else -> null // Indicates a draw
         }
 
@@ -461,7 +529,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             updateUI() // Ensure UI reflects it's our turn
             startNewTurnTimer()
             showKeyboard()
-            setEmojiButtonsEnabled(false) // Disable reaction buttons when it's our turn to type
+
         } else {
             // It's opponent's turn or game is over
             cancelTimer() // Make sure our timer isn't running
@@ -662,9 +730,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.buttonWowFace.setOnClickListener { sendEmojiReaction(EmojiType.WOW_FACE) }
         binding.buttonLaughing.setOnClickListener { sendEmojiReaction(EmojiType.LAUGHING) }
         binding.buttonHeart.setOnClickListener { sendEmojiReaction(EmojiType.HEART) }
-
-        // Initially, disable emoji buttons until opponent has played a word
-        setEmojiButtonsEnabled(false)
     }
 
     private fun setEmojiButtonsEnabled(isEnabled: Boolean) {

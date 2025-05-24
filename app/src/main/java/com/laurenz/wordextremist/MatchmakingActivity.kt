@@ -36,6 +36,7 @@ class MatchmakingActivity : AppCompatActivity() {
     private lateinit var temporaryUsername: String
 
     companion object {
+        const val EXTRA_OWN_USER_ID = "extra_own_user_id"
         const val EXTRA_GAME_ID = "extra_game_id"
         const val EXTRA_USER_ID = "extra_user_id"
         // Removed EXTRA_BACKEND_TOKEN
@@ -195,6 +196,7 @@ class MatchmakingActivity : AppCompatActivity() {
 
         Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user: $userId")
         val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra(EXTRA_OWN_USER_ID, temporaryUserId)
             putExtra(EXTRA_GAME_ID, gameId)
             putExtra(EXTRA_USER_ID, userId)
             // Clear this activity from the back stack so pressing back doesn't return here
