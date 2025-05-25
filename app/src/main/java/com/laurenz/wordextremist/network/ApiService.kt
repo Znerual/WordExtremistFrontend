@@ -1,6 +1,8 @@
 package com.laurenz.wordextremist.network
 
 import com.laurenz.wordextremist.model.BackendToken
+import com.laurenz.wordextremist.model.CancelMatchmakingRequestData
+import com.laurenz.wordextremist.model.GetOrCreateUserRequestData
 import com.laurenz.wordextremist.model.MatchmakingResponse
 import com.laurenz.wordextremist.model.UserPublic // Your Pydantic UserPublic model mirrored in Kotlin
 import com.laurenz.wordextremist.model.SentencePromptPublic // Your Pydantic model mirrored
@@ -42,6 +44,10 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<UserPublic>
     */
+    @POST("api/v1/auth/user/get-or-create")
+    suspend fun getOrCreateUser(
+        @Body requestData: GetOrCreateUserRequestData
+    ): Response<UserPublic> // Returns the UserPublic object (including DB ID)
 
     // --- Keep Game Content Endpoint ---
     @GET("api/v1/game-content/sentence-prompt/random")
@@ -55,14 +61,12 @@ interface ApiService {
     suspend fun findMatch(
         // @Header("Authorization") token: String
         @Query("user_id") userId: Int,
-        @Query("username") username: String
     ): Response<MatchmakingResponse>
 
 
     // Add endpoint for cancelling matchmaking
     @POST("api/v1/matchmaking/cancel") // Correct path and method
     suspend fun cancelMatchmaking(
-        // No Auth Header needed
-        @Query("user_id") userId: Int
+        @Body requestData: CancelMatchmakingRequestData // Send user_id in the body
     ): Response<Unit> // Returns no body on success
 }
