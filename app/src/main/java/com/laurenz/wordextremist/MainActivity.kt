@@ -19,6 +19,7 @@ import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateInterpolator
+import android.view.animation.CycleInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -51,6 +52,9 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var ownUserId: Int = -1
     // Removed currentBackendToken
     // Removed DEBUG constants
+
+    private enum class RoundOutcome { WIN, LOSS, DRAW }
+    private enum class MistakeType { LOCAL, OPPONENT }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -197,14 +201,20 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             Log.d("MainActivity_WS", "Message received: $message")
             try {
                 when (message.optString("type")) {
+                    "status" -> handleStatusMessage(message.getJSONObject("payload"))
                     "game_state" -> handleGameStateUpdate(message.getJSONObject("payload"))
-                    "game_start" -> handleGameStart(message.getJSONObject("payload"))
-                    "opponent_action" -> handleOpponentAction(message.getJSONObject("payload"))
+                    "game_started" -> handleGameStart(message.getJSONObject("payload"))
+                    "new_round_started" -> handleNewRoundStarted(message.getJSONObject("payload"))
+                    "emoji_broadcast" -> handleEmojiBroadcastAction(message.getJSONObject("payload"))
                     "validation_result" -> handleValidationResultFromServer(message.getJSONObject("payload"))
+                    "opponent_mistake" -> handleOpponentMistake(message.getJSONObject("payload"))
                     "opponent_turn_ended" -> handleOpponentTurnEnded(message.getJSONObject("payload"))
+                    "opponent_timeout" -> handleOpponentTimeOut(message.getJSONObject("payload"))
                     "round_over" -> handleRoundOverFromServer(message.getJSONObject("payload"))
                     "game_over" -> handleGameOverFromServer(message.getJSONObject("payload"))
                     "error" -> handleErrorFromServer(message.optString("message", "Unknown server error"))
+                    "info_message" -> handleInfoMessage(message.getJSONObject("payload"))
+                    "player_disconnected" -> handlePlayerDisconnected(message.getJSONObject("payload"))
                     // Add other message types as needed
                     else -> Log.w("MainActivity_WS", "Unknown message type received: ${message.optString("type")}")
                 }
@@ -250,6 +260,106 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     }
 
     // --- Message Handlers (Implement based on your backend protocol) ---
+    private fun handleOpponentMistake(payload: JSONObject) {
+        val opponentMistakes = payload.optInt("mistakes", 0)
+        gameState.player2.mistakesInCurrentRound = opponentMistakes
+
+    }
+
+    private fun handleStatusMessage(payload: JSONObject) { // Expect payload
+        val statusText = payload.optString("message", "Server status...")
+        Log.i("MainActivity_WS", "Status from server: $statusText")
+        // You might want a dedicated TextView for general status messages,
+        // or update the prompt/input hint temporarily.
+        // For now, a Toast is simple:
+        Toast.makeText(this, statusText, Toast.LENGTH_SHORT).show()
+        if (statusText.contains("Waiting for opponent")) {
+            binding.editTextWordInput.hint = statusText
+            // Potentially update a general status TextView:
+            // binding.textViewGeneralStatus.text = statusText
+            // binding.textViewGeneralStatus.visibility = View.VISIBLE
+        }
+    }
+
+    private fun handleInfoMessage(payload: JSONObject) {
+        val messageText = payload.optString("message", "Server information")
+        Log.i("MainActivity_WS", "Info from server: $messageText")
+        Toast.makeText(this, messageText, Toast.LENGTH_LONG).show()
+        // You could also display this in a non-modal way, e.g., a temporary TextView
+        // or update a status bar if the info is relevant to game flow (like "You timed out!").
+    }
+
+    private fun handlePlayerDisconnected(payload: JSONObject) {
+        val disconnectedPlayerId = payload.optString("player_id")
+        val reason = payload.optString("reason", "disconnected") // Optional reason
+        Log.w("MainActivity_WS", "Player $disconnectedPlayerId $reason.")
+
+        var disconnectedPlayerName = "Opponent"
+        if (gameState.player1.serverId == disconnectedPlayerId) {
+            disconnectedPlayerName = gameState.player1.name
+        } else if (gameState.player2.serverId == disconnectedPlayerId) {
+            disconnectedPlayerName = gameState.player2.name
+        }
+
+        val toastMessage = if (reason == "server_error_for_player") {
+            "$disconnectedPlayerName encountered an error and was disconnected."
+        } else {
+            "$disconnectedPlayerName disconnected."
+        }
+        Toast.makeText(this, toastMessage, Toast.LENGTH_LONG).show()
+
+        // Game Logic implications:
+        // The server might send a "game_over" message if a disconnect results in a forfeit.
+        // If not, the game might be stuck or waiting. For now, we'll disable controls
+        // and wait for further instructions from the server (like game_over).
+
+        binding.editTextWordInput.isEnabled = false
+        binding.buttonSubmit.isEnabled = false
+        binding.editTextWordInput.hint = "$disconnectedPlayerName left the game."
+        binding.textViewTimer.text = "Game Interrupted"
+        setEmojiButtonsEnabled(false)
+        cancelTimer()
+
+        // Consider if you want a "Back to Menu" button to become visible here
+        // if the game is effectively over due to disconnect.
+        // binding.buttonBackToMenu.visibility = View.VISIBLE
+        // binding.buttonBackToMenu.setOnClickListener { ... navigate to LauncherActivity ... }
+    }
+
+    // Ensure your handleNewRoundStarted matches what the backend sends ("new_round_started")
+    private fun handleNewRoundStarted(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling new_round_started: ${payload.toString(2)}")
+        cancelTimer() // Stop timer from the previous round
+
+        val prevRoundWinnerId = payload.optString("round_winner_id", null)
+        // The payload for "new_round_started" is a full game state update
+        gameState.updateFromJson(payload, ownUserId.toString()) // Reuses the full state update logic
+
+        val roundWinnerPlayerState = when(prevRoundWinnerId) {
+            gameState.player1.serverId -> gameState.player1
+            gameState.player2.serverId -> gameState.player2
+            else -> null
+        }
+        val winnerName = roundWinnerPlayerState?.name ?: "No one"
+        // gameState.currentRound is now the NEW round number due to updateFromJson
+
+
+
+        val messageToast = if (gameState.currentRound > 1) { // Only show for rounds after the first
+            "$winnerName wins Round ${gameState.currentRound - 1}!"
+        } else {
+            "Round ${gameState.currentRound} starting!"
+        }
+        Toast.makeText(this, messageToast, Toast.LENGTH_LONG).show()
+
+        updateUI()
+
+        binding.editTextWordInput.hint = "Round ${gameState.currentRound}!"
+        // UI hints based on turn are handled by updateUI and handleTurnStart implicitly
+
+        handleTurnStart()
+        setEmojiButtonsEnabled(false)
+    }
 
     private fun handleGameStateUpdate(payload: JSONObject) {
         Log.d("MainActivity_WS", "Handling game state update: $payload")
@@ -279,28 +389,11 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     }
 
 
-    private fun handleOpponentAction(payload: JSONObject) {
+    private fun handleEmojiBroadcastAction(payload: JSONObject) {
         Log.d("MainActivity_WS", "Handling opponent action: $payload")
         val actionType = payload.optString("action")
         when (actionType) {
-            "submit_word" -> {
-                val word = payload.getString("word")
-                val isValid = payload.getBoolean("is_valid") // Assuming server validates and tells us
-                Log.i("MainActivity_WS", "Opponent played '$word', Valid: $isValid")
-                if (isValid) {
-                    gameState.recordValidWord(word) // Record for opponent (player 2)
-                    animateWordToBox(word, binding.textViewPlayer2PlayedWords, false)
-                    setEmojiButtonsEnabled(true) // Enable reactions after opponent plays
-                    // The server should send a game_state update to switch turns formally
-                } else {
-                    gameState.recordMistake() // Record mistake for opponent (player 2)
-                    Toast.makeText(this, "Opponent made a mistake!", Toast.LENGTH_SHORT).show()
-                    updateUI() // Show mistake count update
-                    // Server state update will follow if round ends
-                }
-                // Server should send a GameState update to reflect the new state (scores, words, turn)
-                // updateUI() // Update UI based on intermediate action
-            }
+
             "send_emoji" -> {
                 val emojiTypeStr = payload.optString("emoji")
                 try {
@@ -310,6 +403,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                     Log.w("MainActivity_WS", "Invalid emoji type received: $emojiTypeStr")
                 }
             }
+
+
             // Add other opponent actions
         }
         // Often, after an opponent action, the server sends a full game_state update.
@@ -321,20 +416,21 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.d("MainActivity_WS", "Handling validation result: $payload")
         val word = payload.getString("word") // The word we submitted
         val isValid = payload.getBoolean("is_valid")
-        val message = payload.optString("message", "") // Optional feedback message
 
         if (isValid) {
             cancelTimer() // Stop timer on successful submission
             Toast.makeText(this, "'$word' is a good word!", Toast.LENGTH_SHORT).show()
-            gameState.recordValidWord(word) // Record for local player (player 1)
+            gameState.recordValidWord(word, PlayerTurn.PLAYER_1) // Record for local player (player 1)
             animateWordToBox(word, binding.textViewPlayer1PlayedWords, true)
             // Server will send a game_state update to switch turn
-            gameState.isWaitingForOpponent = true // Assume we now wait for opponent
+            gameState.switchTurn()
             updateUI() // Update UI to show waiting state and disable input
         } else {
-            Toast.makeText(this, message.ifEmpty { "'$word' is not valid. Mistake!" }, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "'$word' is not valid. Mistake!", Toast.LENGTH_LONG).show()
             gameState.recordMistake() // Record mistake for local player (player 1)
             updateUI() // Show mistake count increase
+
+            playMistakeAnimation(MistakeType.LOCAL)
 
             // Server state update will follow if round ends. If not, it's still our turn.
             if (!gameState.isRoundOver()) { // Check based on local state (server might send round_over msg too)
@@ -346,44 +442,28 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private fun handleOpponentTurnEnded(payload: JSONObject) {
         Log.i("MainActivity_WS", "Handling opponent turn ended: $payload")
         try {
-            val opponentWord = payload.getString("opponent_played_word")
+            val opponentPlayerServerId = payload.getString("opponent_player_id")
+            val currentPlayerServerId = payload.getString("current_player_id")
+            val opponentPlayedWord = payload.optString("opponent_played_word", null)
 
             // boolean opponentWordIsValid = payload.getBoolean("opponent_word_is_valid"); // Already implied true by this message type
+            gameState.recordValidWord(opponentPlayedWord, PlayerTurn.PLAYER_2) // Record for opponent (player 2)
+            gameState.switchTurn()
 
-            // The payload for "opponent_turn_ended" IS the new full game state
-            // from the perspective of the player whose turn it now is.
-            gameState.updateFromJson(
-                payload,
-                ownUserId.toString()
-            ) // CRITICAL: Update with the full state
 
             // Animate opponent's word to their box
             // We need to know which player is the opponent for animation.
-            // Since updateFromJson just ran, gameState.player2 is the opponent.
-            if (gameState.player2.serverId.length > 0) { // Check if opponent exists
-                animateWordToBox(
-                    opponentWord,
-                    binding.textViewPlayer2PlayedWords,
-                    false
-                ) // false = not Player 1's word
-
-            } else {
-                Log.w(
-                    "MainActivity_WS",
-                    "Cannot animate opponent word, gameState.player2 is null or has no serverId."
-                )
-            }
-
-
-            // Now that the opponent has played THEIR turn and it's successfully ended,
-            // enable emojis for THIS player to react.
+            // Since updateFromJson just ran, gameState.player2 is the opponent
+            animateWordToBox(
+                opponentPlayedWord,
+                binding.textViewPlayer2PlayedWords,
+                false
+            )
             setEmojiButtonsEnabled(true)
 
             updateUI() // Refresh UI with the new state (now our turn)
             handleTurnStart() // This will start our timer, enable input, and importantly,
 
-            // *disable* emojis again because it's our turn to type.
-            // The window to use emojis is brief, right after this handler.
         } catch (e: JSONException) {
             Log.e("MainActivity_WS", "Error parsing opponent_turn_ended payload", e)
         } catch (e: java.lang.Exception) {
@@ -394,24 +474,69 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         }
     }
 
+    private fun handleOpponentTimeOut(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling opponent timeout: $payload")
+        try {
+            gameState.player2.mistakesInCurrentRound++
+            gameState.switchTurn()
+
+            updateUI()
+            handleTurnStart()
+
+            playMistakeAnimation(MistakeType.OPPONENT)
+        } catch (e: JSONException) {
+            Log.e("MainActivity_WS", "Error parsing opponent_timeout payload", e)
+        } catch (e: java.lang.Exception) {
+            Log.e(
+                "MainActivity_WS",
+                "Error processing opponent_timeout message: $payload", e
+            )
+        }
+
+
+    }
+
     private fun handleRoundOverFromServer(payload: JSONObject) {
         Log.i("MainActivity_WS", "Handling round_over: $payload")
         cancelTimer()
-        val winnerId = payload.optString("winner_id", null) // ID of the round winner, or null for draw/other
+        val winnerIdFromServer = payload.optString("winner_id", null) // ID of the round winner, or null for draw/other
         val p1Score = payload.getInt("player1_score")
         val p2Score = payload.getInt("player2_score")
 
         gameState.player1.score = p1Score
         gameState.player2.score = p2Score
 
-        val roundWinner = when(winnerId) {
+        val localPlayerServerId = gameState.player1.serverId
+        val outcome: RoundOutcome
+
+        if (winnerIdFromServer == null || winnerIdFromServer.isEmpty() || winnerIdFromServer.equals("null", ignoreCase = true)) {
+            outcome = RoundOutcome.DRAW
+        } else if (localPlayerServerId != null && localPlayerServerId == winnerIdFromServer) {
+            outcome = RoundOutcome.WIN
+        } else {
+            // If not a draw and local player didn't win, it's a loss for the local player
+            outcome = RoundOutcome.LOSS
+        }
+
+        playRoundOutcomeAnimation(outcome)
+
+        // Determine the name of the winner for the toast message
+        val roundWinnerPlayerState = when(winnerIdFromServer) {
             gameState.player1.serverId -> gameState.player1
             gameState.player2.serverId -> gameState.player2
             else -> null
         }
 
-        val message = roundWinner?.let { "${it.name} wins Round ${gameState.currentRound}!" } ?: "Round ${gameState.currentRound} ended."
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        val messageToastText = when(outcome) {
+            RoundOutcome.WIN -> "YOU WIN Round ${gameState.currentRound}!"
+            RoundOutcome.LOSS -> if (roundWinnerPlayerState != null) {
+                "${roundWinnerPlayerState.name} wins Round ${gameState.currentRound}!"
+            } else {
+                "Round ${gameState.currentRound} lost." // Fallback
+            }
+            RoundOutcome.DRAW -> "Round ${gameState.currentRound} ended. It's a draw!"
+        }
+        Toast.makeText(this, messageToastText, Toast.LENGTH_LONG).show()
 
         // Server should send a new 'game_state' or 'game_start' for the next round shortly
         // Update UI to show scores, maybe disable input temporarily
@@ -643,6 +768,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 // but rely on server state update for the official outcome.
                 Toast.makeText(this@MainActivity, "Time's up! Sending timeout.", Toast.LENGTH_SHORT).show()
 
+                playMistakeAnimation(MistakeType.LOCAL)
+
                 // OPTIONAL: Send a timeout message to server
                 gameWebSocketClient?.sendPlayerAction("timeout", null)
 
@@ -817,6 +944,193 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             }
         })
         animatorSet.start()
+    }
+
+    private fun playRoundOutcomeAnimation(outcome: RoundOutcome) {
+        val animationView = binding.textViewRoundOutcomeAnimation
+
+        val text: String
+        val textColorRes: Int
+
+        when (outcome) {
+            RoundOutcome.WIN -> {
+                text = "YOU WIN!"
+                textColorRes = R.color.win_color // Define in colors.xml (e.g., green)
+            }
+            RoundOutcome.LOSS -> {
+                text = "ROUND LOST!"
+                textColorRes = R.color.lose_color // Define in colors.xml (e.g., red)
+            }
+            RoundOutcome.DRAW -> {
+                text = "ROUND DRAW!"
+                textColorRes = R.color.draw_color // Define in colors.xml (e.g., yellow/gray)
+            }
+        }
+
+        animationView.text = text
+        animationView.setTextColor(ContextCompat.getColor(this, textColorRes))
+        animationView.visibility = View.VISIBLE
+
+        // Reset initial state for animation
+        animationView.alpha = 0f
+        animationView.scaleX = 0.3f
+        animationView.scaleY = 0.3f
+        animationView.translationY = 100f // Start a bit lower
+        animationView.translationX = 0f  // Ensure X is reset
+
+        // Animation: Emerge (Fade in, Scale up, Translate Y up)
+        val emergeDuration = 500L
+        val emergeAlpha = ObjectAnimator.ofFloat(animationView, View.ALPHA, 0f, 1f).setDuration(emergeDuration)
+        val emergeScaleX = ObjectAnimator.ofFloat(animationView, View.SCALE_X, 0.3f, 1.0f).setDuration(emergeDuration)
+        val emergeScaleY = ObjectAnimator.ofFloat(animationView, View.SCALE_Y, 0.3f, 1.0f).setDuration(emergeDuration)
+        val emergeTranslateY = ObjectAnimator.ofFloat(animationView, View.TRANSLATION_Y, 100f, 0f).setDuration(emergeDuration)
+        emergeAlpha.interpolator = DecelerateInterpolator()
+        emergeScaleX.interpolator = DecelerateInterpolator()
+        emergeScaleY.interpolator = DecelerateInterpolator()
+        emergeTranslateY.interpolator = DecelerateInterpolator()
+
+        val emergeSet = AnimatorSet().apply {
+            playTogether(emergeAlpha, emergeScaleX, emergeScaleY, emergeTranslateY)
+        }
+
+        // Hold Duration (before departing)
+        var holdDuration = 1800L
+
+        // Animation: Depart (Fade out, Scale down slightly, Translate Y up further to exit)
+        val departDuration = 500L
+        val departAlpha = ObjectAnimator.ofFloat(animationView, View.ALPHA, 1f, 0f).setDuration(departDuration)
+        val departScaleX = ObjectAnimator.ofFloat(animationView, View.SCALE_X, 1.0f, 0.7f).setDuration(departDuration)
+        val departScaleY = ObjectAnimator.ofFloat(animationView, View.SCALE_Y, 1.0f, 0.7f).setDuration(departDuration)
+        val departTranslateY = ObjectAnimator.ofFloat(animationView, View.TRANSLATION_Y, 0f, -100f).setDuration(departDuration)
+        departAlpha.interpolator = AccelerateInterpolator()
+        departScaleX.interpolator = AccelerateInterpolator()
+        departScaleY.interpolator = AccelerateInterpolator()
+        departTranslateY.interpolator = AccelerateInterpolator()
+
+        val departSet = AnimatorSet().apply {
+            playTogether(departAlpha, departScaleX, departScaleY, departTranslateY)
+        }
+
+        // Optional Shake for Loss
+        val shakeAnimator: ObjectAnimator? = if (outcome == RoundOutcome.LOSS) {
+            ObjectAnimator.ofFloat(animationView, View.TRANSLATION_X, 0f, -25f, 25f, -25f, 25f, -15f, 15f, -5f, 5f, 0f).apply {
+                duration = 600L
+            }
+        } else null
+
+        val mainSequence = AnimatorSet()
+        mainSequence.play(emergeSet)
+
+        if (shakeAnimator != null) {
+            mainSequence.play(shakeAnimator).after(emergeSet)
+            // Adjust hold duration if shake is present, so depart starts after shake and some hold
+            holdDuration -= shakeAnimator.duration
+            if (holdDuration < 200) holdDuration = 200 // Minimum hold after shake
+            departSet.startDelay = holdDuration
+            mainSequence.play(departSet).after(shakeAnimator)
+        } else {
+            departSet.startDelay = holdDuration // Full hold if no shake
+            mainSequence.play(departSet).after(emergeSet)
+        }
+
+        mainSequence.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                super.onAnimationEnd(animation)
+                animationView.visibility = View.GONE
+                // Reset properties for next time
+                animationView.alpha = 1f
+                animationView.scaleX = 1f
+                animationView.scaleY = 1f
+                animationView.translationX = 0f
+                animationView.translationY = 0f
+            }
+        })
+        mainSequence.start()
+    }
+
+    private fun playMistakeAnimation(mistakeType: MistakeType) {
+        val animationView = binding.textViewMistakeAnimation // Use the new TextView
+        val text: String
+        val textColorRes: Int
+
+        when (mistakeType) {
+            MistakeType.LOCAL -> {
+                text = "MISTAKE!"
+                textColorRes = R.color.mistake_local_color
+            }
+            MistakeType.OPPONENT -> {
+                text = "OPPONENT\nMISTAKE!" // Multi-line for opponent
+                textColorRes = R.color.mistake_opponent_color
+            }
+        }
+
+        animationView.text = text
+        animationView.setTextColor(ContextCompat.getColor(this, textColorRes))
+        animationView.visibility = View.VISIBLE
+
+        // Reset initial state
+        animationView.alpha = 0f
+        animationView.scaleX = 0.5f
+        animationView.scaleY = 0.5f
+        animationView.translationX = 0f
+        animationView.translationY = 0f // Let's not translate Y for this one initially
+
+        // Animation: Pop In (Fade in, Scale up)
+        val popInDuration = 300L
+        val popInAlpha = ObjectAnimator.ofFloat(animationView, View.ALPHA, 0f, 1f).setDuration(popInDuration)
+        val popInScaleX = ObjectAnimator.ofFloat(animationView, View.SCALE_X, 0.5f, 1.1f).setDuration(popInDuration) // Scale slightly larger
+        val popInScaleY = ObjectAnimator.ofFloat(animationView, View.SCALE_Y, 0.5f, 1.1f).setDuration(popInDuration)
+        popInAlpha.interpolator = DecelerateInterpolator()
+        popInScaleX.interpolator = DecelerateInterpolator()
+        popInScaleY.interpolator = DecelerateInterpolator()
+
+        val popInSet = AnimatorSet().apply {
+            playTogether(popInAlpha, popInScaleX, popInScaleY)
+        }
+
+        // Animation: Shake
+        val shakeDuration = 500L
+        val shakeTranslationX = ObjectAnimator.ofFloat(animationView, View.TRANSLATION_X, 0f, 25f, -25f, 25f, -25f, 15f, -15f, 6f, -6f, 0f)
+        shakeTranslationX.duration = shakeDuration
+        shakeTranslationX.interpolator = CycleInterpolator(3f) // Number of cycles for shake
+
+        // Animation: Scale back to normal then Fade Out
+        val scaleBackDuration = 150L
+        val scaleBackX = ObjectAnimator.ofFloat(animationView, View.SCALE_X, 1.1f, 1.0f).setDuration(scaleBackDuration)
+        val scaleBackY = ObjectAnimator.ofFloat(animationView, View.SCALE_Y, 1.1f, 1.0f).setDuration(scaleBackDuration)
+
+        val fadeOutDuration = 400L
+        val fadeOutAlpha = ObjectAnimator.ofFloat(animationView, View.ALPHA, 1f, 0f).setDuration(fadeOutDuration)
+        fadeOutAlpha.startDelay = 100 // Hold a bit before fading
+
+        val popOutSet = AnimatorSet().apply {
+            playTogether(fadeOutAlpha, scaleBackX, scaleBackY) // Scale back while fading
+        }
+
+
+        val mainSequence = AnimatorSet()
+        mainSequence.play(popInSet)
+        mainSequence.play(shakeTranslationX).after(popInSet)
+        mainSequence.play(popOutSet).after(shakeTranslationX)
+
+
+        mainSequence.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                super.onAnimationEnd(animation)
+                animationView.visibility = View.GONE
+                // Reset properties
+                animationView.alpha = 1f
+                animationView.scaleX = 1f
+                animationView.scaleY = 1f
+                animationView.translationX = 0f
+                animationView.translationY = 0f
+            }
+        })
+        mainSequence.start()
+    }
+
+    private fun showMistakeReaction() {
+        Log.d("MainActivity", "Showing emoji reaction.")
     }
 
     private fun showOpponentEmojiReaction(emojiType: EmojiType) {
