@@ -1,6 +1,7 @@
 package com.laurenz.wordextremist.network
 
 import com.laurenz.wordextremist.model.BackendToken
+import com.laurenz.wordextremist.model.DeviceLoginRequestData
 import com.laurenz.wordextremist.model.CancelMatchmakingRequestData
 import com.laurenz.wordextremist.model.GetOrCreateUserRequestData
 import com.laurenz.wordextremist.model.MatchmakingResponse
@@ -39,16 +40,21 @@ interface ApiService {
         @Body authCodeRequest: ServerAuthCodeRequestData
     ): Response<BackendToken>
 
-    @GET("api/v1/auth/users/me")
-    suspend fun getMyProfile(
-        @Header("Authorization") token: String
-    ): Response<UserPublic>
     */
+    @GET("api/v1/auth/users/me")
+    suspend fun getMyProfile(): Response<UserPublic>
+
+    @POST("api/v1/auth/device-login") // New endpoint
+    suspend fun deviceLogin(
+        @Body requestData: DeviceLoginRequestData
+    ): Response<BackendToken> // Returns JWT
+
+    /*
     @POST("api/v1/auth/user/get-or-create")
     suspend fun getOrCreateUser(
         @Body requestData: GetOrCreateUserRequestData
     ): Response<UserPublic> // Returns the UserPublic object (including DB ID)
-
+    */
     // --- Keep Game Content Endpoint ---
     @GET("api/v1/game-content/sentence-prompt/random")
     suspend fun getRandomSentencePrompt(
@@ -60,13 +66,13 @@ interface ApiService {
     @GET("api/v1/matchmaking/find") // Correct path and method
     suspend fun findMatch(
         // @Header("Authorization") token: String
-        @Query("user_id") userId: Int,
+        // @Query("user_id") userId: Int,
     ): Response<MatchmakingResponse>
 
 
     // Add endpoint for cancelling matchmaking
     @POST("api/v1/matchmaking/cancel") // Correct path and method
     suspend fun cancelMatchmaking(
-        @Body requestData: CancelMatchmakingRequestData // Send user_id in the body
+        // @Body requestData: CancelMatchmakingRequestData // Send user_id in the body
     ): Response<Unit> // Returns no body on success
 }

@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
         // --- Initialize WebSocket Client ---
         Log.d("MainActivity", "Initializing WebSocket client for game: $currentGameId")
-        gameWebSocketClient = GameWebSocketClient(currentGameId!!, ownUserId, this) // Pass gameId and listener (this)
+        gameWebSocketClient = GameWebSocketClient(currentGameId!!, this, this) // Pass gameId and listener (this)
         gameWebSocketClient?.connect() // Attempt to connect
 
         // Initialize Game State (basic placeholder)

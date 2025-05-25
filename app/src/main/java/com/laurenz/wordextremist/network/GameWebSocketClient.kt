@@ -4,10 +4,11 @@ import android.util.Log
 import okhttp3.* // OkHttp, Request, WebSocket, WebSocketListener
 import okio.ByteString
 import org.json.JSONObject // For sending/receiving JSON
+import com.laurenz.wordextremist.util.TokenManager
 
 class GameWebSocketClient(
     private val gameId: String,
-    private val userId: Int,
+    private val contextForToken: android.content.Context, // To get token
     // private val googleIdToken: String, // Needed for connection URL
     private val listener: GameWebSocketListenerCallback
 ) {
@@ -32,8 +33,15 @@ class GameWebSocketClient(
             return
         }
 
+        val jwtToken = TokenManager.getToken(contextForToken)
+        if (jwtToken == null) {
+            Log.e("GameWebSocketClient", "Cannot connect: JWT Token is missing.")
+            listener.onFailure(IllegalStateException("Missing auth token for WebSocket"), null)
+            return
+        }
+
         // Adjust WebSocket URL - REMOVED TOKEN PARAMETER
-        val wsUrl = ApiService.BASE_URL.replaceFirst("http", "ws") + "ws/game/$gameId?user_id=$userId" // "${ApiService.BASE_URL.replace("http", "ws")}ws/game/$gameId?token=$googleIdToken"
+        val wsUrl = ApiService.BASE_URL.replaceFirst("http", "ws") + "ws/game/$gameId?token=$jwtToken" // "${ApiService.BASE_URL.replace("http", "ws")}ws/game/$gameId?token=$googleIdToken"
         val request = Request.Builder()
             .url(wsUrl)
             .build()
