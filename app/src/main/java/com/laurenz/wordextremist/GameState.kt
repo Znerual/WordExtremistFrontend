@@ -40,18 +40,28 @@ data class GameState(
     }
 
     fun switchTurn() {
-        currentPlayerTurn = if (currentPlayerTurn == PlayerTurn.PLAYER_1) PlayerTurn.PLAYER_2 else PlayerTurn.PLAYER_1
-        // Reset timer for the new player's turn
-        // This will be handled in MainActivity
+        if (currentPlayerTurn == PlayerTurn.PLAYER_1) {
+            currentPlayerTurn = PlayerTurn.PLAYER_2
+            isWaitingForOpponent = true
+        } else {
+            currentPlayerTurn = PlayerTurn.PLAYER_1
+            isWaitingForOpponent = false
+        }
+
     }
 
     fun recordMistake() {
         getCurrentPlayer().mistakesInCurrentRound++
     }
 
-    fun recordValidWord(word: String) { // New function
+    fun recordOpponentMistake() {
+        getOpponentPlayer().mistakesInCurrentRound++
+    }
+
+    fun recordValidWord(word: String, player: PlayerTurn) { // New function
+        Log.i("GameState", "Recording valid word: $word for player ${player}")
         allWordsPlayedThisRoundSet.add(word.lowercase())
-        if (currentPlayerTurn == PlayerTurn.PLAYER_1) {
+        if (player == PlayerTurn.PLAYER_1) {
             wordsPlayedThisRoundByPlayer1.add(word)
         } else {
             wordsPlayedThisRoundByPlayer2.add(word)
@@ -112,13 +122,13 @@ data class GameState(
         if (serverP1Id == localPlayerActualServerId) {
             updatePlayerStateFromPayload(this.player1, serverP1Id, serverP1StateJson, "player1_state (local)")
             updatePlayerStateFromPayload(this.player2, serverP2Id, serverP2StateJson, "player2_state (opponent)")
-            assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer1)
-            assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer2)
+            //assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer1)
+            //assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer2)
         } else if (serverP2Id == localPlayerActualServerId) {
             updatePlayerStateFromPayload(this.player1, serverP2Id, serverP2StateJson, "player2_state (local)")
             updatePlayerStateFromPayload(this.player2, serverP1Id, serverP1StateJson, "player1_state (opponent)")
-            assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer1)
-            assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer2)
+            //assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer1)
+            //assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer2)
         } else {
             Log.e("GameStateUpdate", "LocalPlayerActualServerId ($localPlayerActualServerId) matched neither serverP1Id ($serverP1Id) nor serverP2Id ($serverP2Id). Player data might be incorrect.")
             // Fallback: try to update based on existing non-empty serverIds if previously set,
@@ -128,8 +138,8 @@ data class GameState(
             if (this.player1.serverId.isEmpty() && this.player2.serverId.isEmpty()) { // First time setup without clear mapping
                 updatePlayerStateFromPayload(this.player1, serverP1Id, serverP1StateJson, "player1_state (assumed local)")
                 updatePlayerStateFromPayload(this.player2, serverP2Id, serverP2StateJson, "player2_state (assumed opponent)")
-                assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer1)
-                assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer2)
+                //assignWords(payload.optJSONArray("player1_words"), wordsPlayedThisRoundByPlayer1)
+                //assignWords(payload.optJSONArray("player2_words"), wordsPlayedThisRoundByPlayer2)
             }
         }
 
