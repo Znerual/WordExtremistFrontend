@@ -10,6 +10,14 @@
     <color name="game_prompt_color">#03A9F4</color>
     <color name="timer_default_color">#2A3BA8</color>
     <color name="timer_warning_color">#F44336</color>
+    <!-- New colors for Round Outcome Animation -->
+    <color name="win_color">#4CAF50</color>   <!-- A pleasant Green for winning -->
+    <color name="lose_color">#D32F2F</color>  <!-- A slightly deeper Red for losing (distinct from timer_warning if preferred, or use timer_warning_color) -->
+    <!-- You can also reuse timer_warning_color if you prefer: <color name="lose_color">@color/timer_warning_color</color> -->
+    <color name="draw_color">#FFC107</color>  <!-- An Amber/Yellow for a draw -->
+    <!-- Colors for Mistake Animations -->
+    <color name="mistake_local_color">#FF6F00</color> <!-- A strong Orange/Amber for local player mistake (Material Amber 800) -->
+    <color name="mistake_opponent_color">#FF9800</color> <!-- A slightly lighter Orange for opponent mistake (Material Orange 500), or could be same as local -->
 </resources>
 
     

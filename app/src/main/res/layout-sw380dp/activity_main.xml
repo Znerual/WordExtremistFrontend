@@ -281,4 +281,37 @@
         app:layout_constraintHorizontal_bias="0.75"
         />
 
+    <TextView
+        android:id="@+id/textViewRoundOutcomeAnimation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="48sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.35"
+        tools:text="YOU WIN!"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/textViewMistakeAnimation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.45"
+        tools:text="MISTAKE!"
+        tools:textColor="@color/timer_warning_color"
+        tools:visibility="visible" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
