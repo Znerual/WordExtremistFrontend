@@ -1,7 +1,9 @@
 package com.laurenz.wordextremist
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.View // Import View
 import android.widget.Toast
@@ -10,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity
 // Removed Observer import
 import androidx.lifecycle.lifecycleScope
 import com.laurenz.wordextremist.databinding.ActivityMatchmakingBinding
+import com.laurenz.wordextremist.model.CancelMatchmakingRequestData
+import com.laurenz.wordextremist.model.GetOrCreateUserRequestData
 import com.laurenz.wordextremist.model.MatchmakingResponse
 import com.laurenz.wordextremist.network.ApiClient
 // Import ApiClient if you make a real call, otherwise remove if only simulating
@@ -31,9 +35,10 @@ class MatchmakingActivity : AppCompatActivity() {
     // Removed authViewModel
     // Removed currentBackendToken
 
-    // Temporary Player Identification (for testing without auth)
-    private var temporaryUserId: Int = -1
-    private lateinit var temporaryUsername: String
+    private var databaseUserId: Int? = null
+    private var actualUsername: String? = null
+    private var localClientIdentifier: String? = null
+
 
     companion object {
         const val EXTRA_OWN_USER_ID = "extra_own_user_id"
@@ -47,52 +52,118 @@ class MatchmakingActivity : AppCompatActivity() {
         binding = ActivityMatchmakingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Generate temporary ID and Username
-        temporaryUserId = Random.nextInt(100000, 999999) // Generate a random ID for testing
-        temporaryUsername = "Player${temporaryUserId}"
-        Log.i("MatchmakingActivity", "Using temporary userId: $temporaryUserId, username: $temporaryUsername")
+        // Get the local client identifier (e.g., Android ID)
+        localClientIdentifier = getLocalClientIdentifier()
+        if (localClientIdentifier == null) {
+            Toast.makeText(this, "Could not retrieve a unique client ID. Cannot proceed.", Toast.LENGTH_LONG).show()
+            Log.e("MatchmakingActivity", "Failed to get localClientIdentifier.")
+            finish() // Exit if no client ID
+            return
+        }
+        Log.i("MatchmakingActivity", "Using client identifier: $localClientIdentifier")
 
         binding.buttonCancelMatchmaking.setOnClickListener {
             cancelMatchmaking()
         }
 
 
-        // Removed observeViewModel() call
-
-        // Directly start matchmaking when the activity is created
-        startMatchmaking()
+        initiateUserRegistrationAndMatchmaking()
     }
 
     // Removed observeViewModel() function
+    @SuppressLint("HardwareIds") // Suppress warning for Settings.Secure.ANDROID_ID
+    private fun getLocalClientIdentifier(): String? {
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    }
 
-    private fun startMatchmaking() {
-        // Prevent starting multiple matchmaking jobs
-        if (matchmakingJob?.isActive == true) {
-            Log.d("MatchmakingActivity", "Matchmaking already in progress.")
+    private fun initiateUserRegistrationAndMatchmaking() {
+        binding.textViewStatus.text = "Registering user..."
+        binding.progressBarMatchmaking.visibility = View.VISIBLE
+        binding.buttonCancelMatchmaking.isEnabled = false // Keep disabled until user is registered
+
+        val currentLocalClientId = localClientIdentifier
+        if (currentLocalClientId == null) {
+            Log.e("MatchmakingActivity", "Local client identifier is null, cannot register user.")
+            binding.textViewStatus.text = "Error: Client ID missing."
+            binding.progressBarMatchmaking.visibility = View.GONE
             return
         }
 
-        Log.i("MatchmakingActivity", "Starting matchmaking process for user $temporaryUserId...")
+        lifecycleScope.launch {
+            try {
+                val requestData = GetOrCreateUserRequestData(
+                    clientProvidedId = currentLocalClientId,
+                    username = "Player_${currentLocalClientId.takeLast(6)}" // Example username suggestion
+                )
+                Log.d("MatchmakingActivity", "Calling getOrCreateUser API with client ID: $currentLocalClientId")
+                val response = ApiClient.instance.getOrCreateUser(requestData)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val user = response.body()!!
+                    databaseUserId = user.id
+                    actualUsername = user.username ?: "Player${user.id}" // Use server username or fallback
+                    Log.i("MatchmakingActivity", "User registered/fetched. DB ID: $databaseUserId, Username: $actualUsername")
+
+                    // Now that user is registered and we have the DB ID, start matchmaking
+                    startMatchmakingPolling()
+
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error getting/creating user"
+                    Log.e("MatchmakingActivity", "Error from getOrCreateUser: ${response.code()} - $errorBody")
+                    binding.textViewStatus.text = "Error: Could not register user (${response.code()})."
+                    binding.progressBarMatchmaking.visibility = View.GONE
+                    Toast.makeText(this@MatchmakingActivity, "Failed to connect to user service.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: IOException) {
+                Log.e("MatchmakingActivity", "Network error in getOrCreateUser: ${e.message}")
+                binding.textViewStatus.text = "Network error. Check connection."
+                binding.progressBarMatchmaking.visibility = View.GONE
+                Toast.makeText(this@MatchmakingActivity, "Network error. Please try again.", Toast.LENGTH_LONG).show()
+            } catch (e: HttpException) {
+                Log.e("MatchmakingActivity", "HTTP error in getOrCreateUser: ${e.code()} - ${e.message()}")
+                binding.textViewStatus.text = "Server error (${e.code()}) during user registration."
+                binding.progressBarMatchmaking.visibility = View.GONE
+                Toast.makeText(this@MatchmakingActivity, "Server error. Please try again.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Log.e("MatchmakingActivity", "Unexpected error in getOrCreateUser: ${e.message}", e)
+                binding.textViewStatus.text = "An error occurred during user registration."
+                binding.progressBarMatchmaking.visibility = View.GONE
+                Toast.makeText(this@MatchmakingActivity, "An unexpected error occurred.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+
+    private fun startMatchmakingPolling() {
+        val currentDbUserId = databaseUserId
+        if (currentDbUserId == null) {
+            Log.e("MatchmakingActivity", "Cannot start matchmaking polling, databaseUserId is null.")
+            binding.textViewStatus.text = "Error: User ID not available for matchmaking."
+            binding.progressBarMatchmaking.visibility = View.GONE
+            return
+        }
+
+        // Prevent starting multiple matchmaking jobs
+        if (matchmakingJob?.isActive == true) {
+            Log.d("MatchmakingActivity", "Matchmaking polling already in progress.")
+            return
+        }
+
+        Log.i("MatchmakingActivity", "Starting matchmaking polling for user DB ID: $currentDbUserId (Username: $actualUsername)...")
         binding.textViewStatus.text = "Connecting to matchmaking..."
         binding.progressBarMatchmaking.visibility = View.VISIBLE
-        binding.buttonCancelMatchmaking.isEnabled = true // Enable cancel button
+        binding.buttonCancelMatchmaking.isEnabled = true // Enable cancel button now
 
-        // Launch the matchmaking polling coroutine
         matchmakingJob = lifecycleScope.launch {
             var matchFound = false
-            val initialDelay = 500L // Short delay before first poll
+            val initialDelay = 250L
             delay(initialDelay)
 
             while (isActive && !matchFound) {
                 try {
-                    Log.d("MatchmakingActivity", "Polling matchmaking API...")
-                    // Make the actual API call using the existing ApiClient instance
-                    val response = ApiClient.instance.findMatch(
-                        userId = temporaryUserId,
-                        username = temporaryUsername
-                    )
+                    Log.d("MatchmakingActivity", "Polling matchmaking API with user_id: $currentDbUserId")
+                    val response = ApiClient.instance.findMatch(userId = currentDbUserId) // Use the database User ID
 
-                    // Check if the coroutine was cancelled after the network call returned
                     if (!isActive) {
                         Log.d("MatchmakingActivity", "Matchmaking job cancelled after API response.")
                         break
@@ -103,152 +174,135 @@ class MatchmakingActivity : AppCompatActivity() {
                         if (matchmakingStatus != null) {
                             when (matchmakingStatus.status) {
                                 "matched" -> {
-                                    if (matchmakingStatus.game_id != null) {
-                                        // MATCH FOUND!
-                                        Log.i("MatchmakingActivity", "Match found! Game ID: ${matchmakingStatus.game_id}, Opponent: ${matchmakingStatus.opponent_name}")
+                                    if (matchmakingStatus.game_id != null && matchmakingStatus.your_player_id_in_game != null) {
+                                        Log.i("MatchmakingActivity", "Match found! Game ID: ${matchmakingStatus.game_id}, Opponent: ${matchmakingStatus.opponent_name}, Your ID in Game: ${matchmakingStatus.your_player_id_in_game}")
                                         binding.textViewStatus.text = "Match Found!"
-                                        binding.progressBarMatchmaking.visibility = View.GONE // Hide progress bar
+                                        binding.progressBarMatchmaking.visibility = View.GONE
                                         Toast.makeText(this@MatchmakingActivity, "Match found with ${matchmakingStatus.opponent_name ?: "Player"}!", Toast.LENGTH_LONG).show()
-                                        matchFound = true // Set flag to exit loop
-                                        binding.buttonCancelMatchmaking.isEnabled = false // Disable cancel after match
-                                        // Proceed to the game screen
-                                        proceedToGame(matchmakingStatus.game_id, temporaryUserId)
+                                        matchFound = true
+                                        binding.buttonCancelMatchmaking.isEnabled = false
+                                        // Ensure we use the correct ID from the match response (should be same as currentDbUserId)
+                                        proceedToGame(matchmakingStatus.game_id, matchmakingStatus.your_player_id_in_game)
                                     } else {
-                                        // Should not happen if status is matched, but handle defensively
-                                        Log.e("MatchmakingActivity", "Error: Matched status received but game_id is null!")
+                                        Log.e("MatchmakingActivity", "Error: Matched status received but game_id or your_player_id_in_game is null!")
                                         binding.textViewStatus.text = "Error: Invalid match data."
-                                        delay(5000) // Wait longer before retrying on this specific error
+                                        delay(5000)
                                     }
                                 }
                                 "waiting" -> {
-                                    // Still waiting, update UI and continue polling
-                                    binding.textViewStatus.text = "Searching for opponent..."
+                                    binding.textViewStatus.text = "Searching for opponent as ${actualUsername ?: "Player"}..."
                                     Log.d("MatchmakingActivity", "Status: waiting...")
                                 }
                                 else -> {
-                                    // Handle other potential statuses defined by the backend (e.g., "error", "cancelled")
                                     Log.w("MatchmakingActivity", "Received unexpected status: ${matchmakingStatus.status}")
                                     binding.textViewStatus.text = "Searching... (${matchmakingStatus.status})"
                                 }
                             }
                         } else {
-                            // Handle case where response is successful (2xx) but body is null
-                            Log.e("MatchmakingActivity", "Matchmaking response body is null despite successful status.")
+                            Log.e("MatchmakingActivity", "Matchmaking response body is null.")
                             binding.textViewStatus.text = "Error: Empty response."
-                            delay(5000) // Wait before retrying
+                            delay(5000)
                         }
                     } else {
-                        // Handle API error response (non-2xx status code)
                         val errorBody = response.errorBody()?.string() ?: "Unknown server error"
                         Log.e("MatchmakingActivity", "Matchmaking API error: ${response.code()} - $errorBody")
                         binding.textViewStatus.text = "Server Error (${response.code()}). Retrying..."
-                        delay(5000) // Wait longer on HTTP error before retrying
+                        delay(5000)
                     }
-
                 } catch (e: IOException) {
-                    // Handle network connectivity errors
-                    if (!isActive) break // Exit if cancelled during exception handling
+                    if (!isActive) break
                     Log.e("MatchmakingActivity", "Network error during matchmaking poll: ${e.message}")
                     binding.textViewStatus.text = "Network error. Check connection."
-                    delay(5000) // Wait before retrying network error
+                    delay(5000)
                 } catch (e: HttpException) {
-                    // Handle non-2xx HTTP errors caught by Retrofit/OkHttp
                     if (!isActive) break
                     Log.e("MatchmakingActivity", "HTTP error during matchmaking poll: ${e.code()} - ${e.message()}")
                     binding.textViewStatus.text = "Server error (${e.code()}). Retrying..."
                     delay(5000)
                 } catch (e: Exception) {
-                    // Handle any other unexpected errors (like JSON parsing issues, etc.)
                     if (!isActive) break
                     Log.e("MatchmakingActivity", "Unexpected error during matchmaking poll: ${e.message}", e)
                     binding.textViewStatus.text = "An error occurred. Retrying..."
                     delay(5000)
                 }
 
-                // Only delay if no match was found and the loop is still active
                 if (!matchFound && isActive) {
-                    val pollInterval = 3000L // Poll every 3 seconds
+                    val pollInterval = 3000L
                     Log.d("MatchmakingActivity", "Waiting ${pollInterval}ms before next poll.")
                     delay(pollInterval)
                 }
-            } // End while loop
+            }
 
-            // If the loop finished but no match was found and the job wasn't cancelled
             if (!matchFound && isActive) {
                 Log.w("MatchmakingActivity", "Matchmaking loop finished without finding a match.")
                 binding.textViewStatus.text = "Could not find a match. Try again?"
                 binding.progressBarMatchmaking.visibility = View.GONE
-                binding.buttonCancelMatchmaking.isEnabled = false // Disable cancel if loop ends naturally
-                // Consider adding a "Try Again" button here
+                binding.buttonCancelMatchmaking.isEnabled = false
             }
         }
     }
 
-
-    // Navigates to MainActivity with necessary data
-    private fun proceedToGame(gameId: String, userId: Int) {
-        // Ensure polling stops if it hasn't already (e.g., if called outside the loop)
+    private fun proceedToGame(gameId: String, ownDbUserId: Int) {
         if (matchmakingJob?.isActive == true) {
             matchmakingJob?.cancel()
             matchmakingJob = null
         }
-        binding.progressBarMatchmaking.visibility = View.GONE // Ensure progress bar is hidden
+        binding.progressBarMatchmaking.visibility = View.GONE
 
-        Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user: $userId")
+        Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user DB ID: $ownDbUserId (Username: $actualUsername)")
         val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra(EXTRA_OWN_USER_ID, temporaryUserId)
+            putExtra(EXTRA_OWN_USER_ID, ownDbUserId) // Pass the actual database User ID
             putExtra(EXTRA_GAME_ID, gameId)
-            putExtra(EXTRA_USER_ID, userId)
-            // Clear this activity from the back stack so pressing back doesn't return here
+            putExtra(EXTRA_USER_ID, ownDbUserId) // Also pass it as EXTRA_USER_ID if MainActivity uses that specifically for self
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
-        finish() // Close MatchmakingActivity definitively
+        finish()
     }
 
-    // Cancels the matchmaking process both locally and on the backend
     private fun cancelMatchmaking() {
-        // Check if there's an active job to cancel
-        if (matchmakingJob?.isActive != true) {
-            Log.d("MatchmakingActivity", "Matchmaking not active or already cancelled.")
-            // Ensure UI reflects cancelled state if needed, even if job was already done/null
-            binding.textViewStatus.text = "Matchmaking Cancelled."
+        val userIdToCancelWith = databaseUserId // Use the fetched DB ID
+        if (userIdToCancelWith == null) {
+            Log.w("MatchmakingActivity", "Cannot cancel matchmaking, user ID not available.")
+            binding.textViewStatus.text = "Matchmaking Cancelled (User not registered)."
             binding.progressBarMatchmaking.visibility = View.GONE
-            binding.buttonCancelMatchmaking.isEnabled = false
+            binding.buttonCancelMatchmaking.isEnabled = false // Keep disabled
+            // Potentially navigate back or allow retry of registration
+            navigateToLauncher()
             return
         }
 
-        val userIdToCancel = temporaryUserId
-        Log.i("MatchmakingActivity", "Attempting to cancel matchmaking for user $userIdToCancel...")
+        if (matchmakingJob?.isActive != true) {
+            Log.d("MatchmakingActivity", "Matchmaking not active or already cancelled for user ID $userIdToCancelWith.")
+            binding.textViewStatus.text = "Matchmaking Cancelled."
+            binding.progressBarMatchmaking.visibility = View.GONE
+            binding.buttonCancelMatchmaking.isEnabled = false
+            navigateToLauncher()
+            return
+        }
 
-        // Update UI immediately
-        binding.buttonCancelMatchmaking.isEnabled = false // Disable button during cancellation
+        Log.i("MatchmakingActivity", "Attempting to cancel matchmaking for user DB ID: $userIdToCancelWith...")
+        binding.buttonCancelMatchmaking.isEnabled = false
         binding.textViewStatus.text = "Cancelling matchmaking..."
-        binding.progressBarMatchmaking.visibility = View.VISIBLE // Show progress during cancel API call
+        binding.progressBarMatchmaking.visibility = View.VISIBLE
 
-        // Cancel the local polling job first
         matchmakingJob?.cancel()
-        matchmakingJob = null // Clear the job reference
+        matchmakingJob = null
 
-        // Call the backend API to remove the player from the pool
         lifecycleScope.launch {
             try {
-                Log.d("MatchmakingActivity", "Calling cancelMatchmaking API for user $userIdToCancel...")
-                val response = ApiClient.instance.cancelMatchmaking(userIdToCancel)
+                Log.d("MatchmakingActivity", "Calling cancelMatchmaking API for user DB ID: $userIdToCancelWith")
+                val cancelRequest = CancelMatchmakingRequestData(userId = userIdToCancelWith)
+                val response = ApiClient.instance.cancelMatchmaking(cancelRequest)
 
                 if (response.isSuccessful) {
-                    // Backend confirmed cancellation
-                    Log.i("MatchmakingActivity", "Matchmaking successfully cancelled on backend.")
+                    Log.i("MatchmakingActivity", "Matchmaking successfully cancelled on backend for user DB ID: $userIdToCancelWith.")
                     binding.textViewStatus.text = "Matchmaking Cancelled."
                     Toast.makeText(this@MatchmakingActivity, "Matchmaking cancelled", Toast.LENGTH_SHORT).show()
-                    // Maybe finish the activity automatically after successful cancel?
-
                 } else {
-                    // Backend returned an error during cancellation
                     val errorBody = response.errorBody()?.string() ?: "Unknown server error"
                     Log.e("MatchmakingActivity", "Failed to cancel matchmaking on backend: ${response.code()} - $errorBody")
                     binding.textViewStatus.text = "Cancellation failed (Server Error ${response.code()})"
-                    // Re-enable cancel button? Or let user back out? Keep disabled for now.
                     Toast.makeText(this@MatchmakingActivity, "Could not cancel on server.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: IOException) {
@@ -264,42 +318,41 @@ class MatchmakingActivity : AppCompatActivity() {
                 binding.textViewStatus.text = "Cancellation failed (Unknown Error)"
                 Toast.makeText(this@MatchmakingActivity, "Error during cancellation.", Toast.LENGTH_SHORT).show()
             } finally {
-                // Ensure progress bar is hidden after cancellation attempt finishes
                 binding.progressBarMatchmaking.visibility = View.GONE
-                // Keep cancel button disabled as the process is finished (successfully or not)
                 binding.buttonCancelMatchmaking.isEnabled = false
+                navigateToLauncher() // Navigate back after cancellation attempt
             }
         }
+    }
+
+    private fun navigateToLauncher() {
         val intent = Intent(this, LauncherActivity::class.java).apply {
-            // Clear this activity from the back stack so pressing back doesn't return here
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
+        finish()
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
-        // Ensure the matchmaking job is cancelled if the activity is destroyed
-        // This prevents the coroutine from leaking and continuing network calls
+        val currentDbUserId = databaseUserId // Capture current value
         if (matchmakingJob?.isActive == true) {
-            Log.d("MatchmakingActivity", "onDestroy called, cancelling active matchmaking job.")
+            Log.d("MatchmakingActivity", "onDestroy called, cancelling active matchmaking job for user DB ID: $currentDbUserId")
             matchmakingJob?.cancel()
             matchmakingJob = null
-            // Consider if backend cancellation should be attempted here as well.
-            // This depends on whether you want the player removed from the pool
-            // if they forcefully close the app during matchmaking.
-            // It requires launching another short-lived coroutine for the API call.
-            // Example (optional):
 
-            lifecycleScope.launch {
-                try {
-                    Log.i("MatchmakingActivity", "Attempting backend cancellation on destroy for user $temporaryUserId")
-                    ApiClient.instance.cancelMatchmaking(temporaryUserId)
-                } catch (e: Exception) {
-                    Log.w("MatchmakingActivity", "Error during backend cancellation on destroy: ${e.message}")
+            if (currentDbUserId != null) { // Only attempt backend cancel if we have a valid ID
+                lifecycleScope.launch {
+                    try {
+                        Log.i("MatchmakingActivity", "Attempting backend cancellation on destroy for user DB ID: $currentDbUserId")
+                        val cancelRequest = CancelMatchmakingRequestData(userId = currentDbUserId)
+                        ApiClient.instance.cancelMatchmaking(cancelRequest) // Fire and forget basically
+                    } catch (e: Exception) {
+                        Log.w("MatchmakingActivity", "Error during backend cancellation on destroy: ${e.message}")
+                    }
                 }
             }
-
         }
     }
 }
