@@ -10,6 +10,7 @@ enum class PlayerTurn {
 data class GameState(
     var player1: PlayerState,
     var player2: PlayerState,
+    var language: String = "en",
     var currentPlayerTurn: PlayerTurn = PlayerTurn.PLAYER_1,
     var currentRound: Int = 1,
     val maxRounds: Int = 3, // e.g., best of 3 rounds
@@ -107,7 +108,7 @@ data class GameState(
         currentPrompt = payload.optString("prompt", currentPrompt)
         wordToReplace = payload.optString("word_to_replace", wordToReplace)
         currentRound = payload.optInt("round", currentRound)
-
+        language = payload.optString("language", language)
         val serverP1Id = payload.optString("player1_server_id")
         val serverP2Id = payload.optString("player2_server_id")
         val serverP1StateJson = payload.optJSONObject("player1_state")

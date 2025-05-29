@@ -1,10 +1,14 @@
 // LauncherActivity.kt
 package com.laurenz.wordextremist
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -17,12 +21,16 @@ import com.google.android.gms.games.PlayGamesSdk
 import com.laurenz.wordextremist.databinding.ActivityLauncherBinding
 import kotlinx.coroutines.launch
 import java.util.UUID
+import androidx.core.content.edit
 
 class LauncherActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLauncherBinding
+    private val languageMap = mapOf("English" to "en", "Español" to "es", "Français" to "fr") // Name to Code
+    private var selectedLanguageCode: String = "en" // Default
 
-
+    private val PREFS_NAME = "WordExtremistPrefs"
+    private val PREF_SELECTED_LANGUAGE_CODE = "selectedLanguageCode"
 
     // --- DEBUG FLAG ---
     private val USE_DEBUG_AUTH = BuildConfig.DEBUG
@@ -38,9 +46,51 @@ class LauncherActivity : AppCompatActivity() {
             PlayGamesSdk.initialize(this) // Initialize Play Games SDK if not in debug auth mode
         }
 
+        setupLanguageSpinner()
+        loadLanguagePreference() // Load saved language and update spinner
         setupClickListeners()
         //observeViewModel()
 
+    }
+
+    private fun setupLanguageSpinner() {
+        val languageNames = languageMap.keys.toTypedArray()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, languageNames)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerLanguage.adapter = adapter
+
+        binding.spinnerLanguage.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedName = languageNames[position]
+                selectedLanguageCode = languageMap[selectedName] ?: "en" // Fallback to "en"
+                saveLanguagePreference(selectedLanguageCode)
+                Log.d("LauncherActivity", "Language selected: $selectedName ($selectedLanguageCode)")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                // Optional: handle case where nothing is selected
+            }
+        }
+    }
+
+    private fun saveLanguagePreference(languageCode: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { putString(PREF_SELECTED_LANGUAGE_CODE, languageCode) }
+    }
+
+    private fun loadLanguagePreference() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedLangCode = prefs.getString(PREF_SELECTED_LANGUAGE_CODE, "en") ?: "en"
+        selectedLanguageCode = savedLangCode
+
+        // Set the spinner to the saved language
+        val languageNames = languageMap.keys.toList()
+        val position = languageMap.values.indexOf(savedLangCode)
+        if (position != -1 && position < binding.spinnerLanguage.adapter.count) {
+            binding.spinnerLanguage.setSelection(position)
+        } else {
+            binding.spinnerLanguage.setSelection(0) // Default to first item (English) if not found
+        }
     }
 
     private fun setupClickListeners() {

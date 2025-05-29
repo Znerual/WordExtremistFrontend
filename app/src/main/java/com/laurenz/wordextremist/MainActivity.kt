@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var currentGameId: String? = null
     private var currentUserId: Int = -1
     private var ownUserId: Int = -1
+    private var currentGameLanguage: String = "en"
     // Removed currentBackendToken
     // Removed DEBUG constants
 
@@ -67,6 +68,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         ownUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_OWN_USER_ID, -1)
         currentGameId = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_ID)
         currentUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_USER_ID, -1)
+        currentGameLanguage = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_LANGUAGE_FOR_MAIN) ?: "en"
         // Removed backend token retrieval
 
         if (currentGameId == null) {
@@ -133,6 +135,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         gameState = GameState(
             player1 = p1,
             player2 = p2,
+            language = currentGameLanguage,
             PlayerTurn.PLAYER_1,
             1,
             3,
@@ -333,6 +336,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
         val prevRoundWinnerId = payload.optString("round_winner_id", null)
         // The payload for "new_round_started" is a full game state update
+        currentGameLanguage = payload.optString("language", currentGameLanguage)
         gameState.updateFromJson(payload, ownUserId.toString()) // Reuses the full state update logic
 
         val roundWinnerPlayerState = when(prevRoundWinnerId) {
@@ -365,6 +369,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.d("MainActivity_WS", "Handling game state update: $payload")
         // This is crucial: Parse the full state from the server and update local gameState
         try {
+            currentGameLanguage = payload.optString("language", currentGameLanguage)
             gameState.updateFromJson(payload, ownUserId.toString())
 
             updateUI() // Refresh the entire UI based on the new state
@@ -379,6 +384,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.i("MainActivity_WS", "Handling game_start: $payload")
         // Payload might contain initial state or confirm player roles
         // Often combined with the first game_state message
+        currentGameLanguage = payload.optString("language", currentGameLanguage)
         handleGameStateUpdate(payload) // Process initial state
         // Explicitly mark as not waiting if it's our turn
         if (gameState.isWaitingForOpponent) {

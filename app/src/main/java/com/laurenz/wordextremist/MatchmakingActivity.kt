@@ -36,10 +36,14 @@ class MatchmakingActivity : AppCompatActivity() {
     private var localClientIdentifier: String? = null
     private var clientGeneratedPasswordForSession: String? = null // Only needed for the initial login call
 
+    private var gameLanguageForMatchmaking: String = "en" // Default
+
     companion object {
+        const val EXTRA_SELECTED_LANGUAGE = "extra_selected_language"
         const val EXTRA_OWN_USER_ID = "extra_own_user_id"
         const val EXTRA_GAME_ID = "extra_game_id"
         const val EXTRA_USER_ID = "extra_user_id"
+        const val EXTRA_GAME_LANGUAGE_FOR_MAIN = "extra_game_language_for_main"
         // Removed EXTRA_BACKEND_TOKEN
     }
 
@@ -47,6 +51,10 @@ class MatchmakingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMatchmakingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        gameLanguageForMatchmaking = intent.getStringExtra(EXTRA_SELECTED_LANGUAGE) ?: "en"
+        Log.i("MatchmakingActivity", "Received language for matchmaking: $gameLanguageForMatchmaking")
+
 
         // Get the local client identifier (e.g., Android ID)
         localClientIdentifier = getLocalClientIdentifier()
@@ -186,7 +194,7 @@ class MatchmakingActivity : AppCompatActivity() {
             while (isActive && !matchFound) {
                 try {
                     Log.d("MatchmakingActivity", "Polling matchmaking API with user_id: $databaseUserId")
-                    val response = ApiClient.instance.findMatch()
+                    val response = ApiClient.instance.findMatch(language = gameLanguageForMatchmaking)
 
                     if (!isActive) {
                         Log.d("MatchmakingActivity", "Matchmaking job cancelled after API response.")
@@ -207,7 +215,7 @@ class MatchmakingActivity : AppCompatActivity() {
                                         matchFound = true
                                         binding.buttonCancelMatchmaking.isEnabled = false
                                         // Ensure we use the correct ID from the match response (should be same as currentDbUserId)
-                                        proceedToGame(matchmakingStatus.game_id, databaseUserId!!)
+                                        proceedToGame(matchmakingStatus.game_id, databaseUserId!!,  matchmakingStatus.language ?: gameLanguageForMatchmaking)
                                     } else {
                                         Log.e("MatchmakingActivity", "Error: Matched status received but game_id or your_player_id_in_game is null!")
                                         binding.textViewStatus.text = "Error: Invalid match data."
@@ -267,7 +275,7 @@ class MatchmakingActivity : AppCompatActivity() {
         }
     }
 
-    private fun proceedToGame(gameId: String, ownDbUserId: Int) {
+    private fun proceedToGame(gameId: String, ownDbUserId: Int, actualGameLanguage: String) {
         matchmakingJob?.cancel()
         matchmakingJob = null
         binding.progressBarMatchmaking.visibility = View.GONE
@@ -286,6 +294,7 @@ class MatchmakingActivity : AppCompatActivity() {
             putExtra(EXTRA_OWN_USER_ID, ownDbUserId)
             putExtra(EXTRA_GAME_ID, gameId)
             putExtra(EXTRA_USER_ID, ownDbUserId) // If MainActivity uses this for self
+            putExtra(EXTRA_GAME_LANGUAGE_FOR_MAIN, actualGameLanguage)
             // NO LONGER PASS TOKEN VIA INTENT if WebSocket uses it in URL
             // putExtra(MainActivity.EXTRA_BACKEND_TOKEN, jwtToken) // If MainActivity needs it for other things
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

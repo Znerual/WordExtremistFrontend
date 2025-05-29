@@ -59,12 +59,14 @@ interface ApiService {
     @GET("api/v1/game-content/sentence-prompt/random")
     suspend fun getRandomSentencePrompt(
         // Remove Auth header if this should also be unauthenticated for testing
+        @Query("language") language: String? // Add language query parameter
         // @Header("Authorization") token: String
     ): Response<SentencePromptPublic>
 
     // Modify existing or add new findMatch - Use GET, no Auth header, add Query params
     @GET("api/v1/matchmaking/find") // Correct path and method
     suspend fun findMatch(
+        @Query("requested_language") language: String? // Add language query parameter, ensure name matches backend
         // @Header("Authorization") token: String
         // @Query("user_id") userId: Int,
     ): Response<MatchmakingResponse>

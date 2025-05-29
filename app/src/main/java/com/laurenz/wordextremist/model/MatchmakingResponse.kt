@@ -9,6 +9,9 @@ data class MatchmakingResponse(
     @SerializedName("game_id")
     val game_id: String?, // Can be null if status is "waiting" or "error"
 
+    @SerializedName("language") // Ensure this matches backend key
+    val language: String?, // Add this field
+
     @SerializedName("opponent_name")
     val opponent_name: String?, // Can be null if status is "waiting" or "error"
 
