@@ -1,12 +1,14 @@
 // LauncherActivity.kt
 package com.laurenz.wordextremist
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.AdapterView
+import android.provider.Settings
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.Toast
@@ -19,7 +21,10 @@ import com.google.android.gms.games.PlayGamesSdk
 //import com.laurenz.wordextremist.auth.AuthPgsStatus
 //import com.laurenz.wordextremist.auth.AuthViewModel
 import com.laurenz.wordextremist.databinding.ActivityLauncherBinding
+import com.laurenz.wordextremist.model.DeviceLoginRequestData
 import com.laurenz.wordextremist.ui.animation.AnimatedElement
+import com.laurenz.wordextremist.util.KeystoreHelper
+import com.laurenz.wordextremist.util.TokenManager
 import android.view.Choreographer
 import android.view.ViewTreeObserver
 import android.widget.ImageView
@@ -31,6 +36,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import java.util.UUID
 import androidx.core.content.edit
+import com.laurenz.wordextremist.model.UserPublic
+import com.laurenz.wordextremist.network.ApiClient
 
 class LauncherActivity : AppCompatActivity() {
 
@@ -40,6 +47,14 @@ class LauncherActivity : AppCompatActivity() {
 
     private val PREFS_NAME = "WordExtremistPrefs"
     private val PREF_SELECTED_LANGUAGE_CODE = "selectedLanguageCode"
+    private val PREF_USER_NAME = "userName"
+    private val PREF_USER_LEVEL = "userLevel"
+    private val PREF_USER_EXPERIENCE = "userExperience"
+    private val PREF_USER_WORDS_COUNT = "userWordsCount"
+    private val PREF_USER_DB_ID = "userDbId" // To store user's database ID
+
+    private var localClientIdentifier: String? = null // For device login
+    private var currentUserDbId: Int? = null // Store current user's DB ID
 
     // --- DEBUG FLAG ---
     private val USE_DEBUG_AUTH = BuildConfig.DEBUG
@@ -54,12 +69,7 @@ class LauncherActivity : AppCompatActivity() {
     private var isActivityResumed = false
 
     private val animationFrameCallback = object : Choreographer.FrameCallback {
-        var frameCount = 0 // For debugging
         override fun doFrame(frameTimeNanos: Long) {
-            if (frameCount < 5 || frameCount % 60 == 0) { // Log first 5 frames, then every 60 frames
-                Log.d("LauncherActivity_AnimLoop", "doFrame: Frame $frameCount. Updating elements. isDestroyed=$isDestroyed, isFinishing=$isFinishing")
-            }
-            frameCount++
 
             // Ensure dimensions are set and activity is active before updating
             if (parentViewWidth > 0 && parentViewHeight > 0 && !isDestroyed && !isFinishing) {
@@ -75,7 +85,14 @@ class LauncherActivity : AppCompatActivity() {
         Log.d("LauncherActivity", "onCreate: Started") // ADDED LOG
         binding = ActivityLauncherBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        Log.d("LauncherActivity", "onCreate: Content view set") // ADDED LOG
+
+        localClientIdentifier = getLocalClientIdentifier() // Get device ID
+        if (localClientIdentifier == null) {
+            Toast.makeText(this, "Critical Error: Cannot identify device.", Toast.LENGTH_LONG).show()
+            finishAffinity() // Exit if no device ID
+            return
+        }
+
         // Initialize AuthViewModel and CredentialManager/PlayGamesSd
         if (!USE_DEBUG_AUTH) {
             PlayGamesSdk.initialize(this) // Initialize Play Games SDK if not in debug auth mode
@@ -84,7 +101,7 @@ class LauncherActivity : AppCompatActivity() {
         setupLanguageSpinner()
         loadLanguagePreference() // Load saved language and update spinner
         setupClickListeners()
-        //observeViewModel()
+        loadCachedProfileInfo() // Load cached info first
 
         // Setup for animations: Get parent dimensions once layout is complete
         binding.root.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -128,6 +145,199 @@ class LauncherActivity : AppCompatActivity() {
         })
         Log.d("LauncherActivity", "onCreate: OnGlobalLayoutListener attached.")
     }
+
+    @SuppressLint("HardwareIds")
+    private fun getLocalClientIdentifier(): String? {
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    }
+
+    private fun checkAuthenticationAndFetchProfile() {
+        val token = TokenManager.getToken(this)
+        if (token != null) {
+            Log.d("LauncherActivity", "Token found. Verifying by fetching profile...")
+            fetchUserProfile(token) // Attempt to fetch profile with existing token
+        } else {
+            Log.d("LauncherActivity", "No token found. Initiating device login.")
+            initiateDeviceLogin()
+        }
+    }
+
+    private fun initiateDeviceLogin() {
+        val currentLocalClientId = localClientIdentifier ?: return // Should be available
+        var clientPassword = KeystoreHelper.getStoredPassword(this)
+        if (clientPassword == null) {
+            clientPassword = KeystoreHelper.generateAndStorePassword(this)
+            Log.i("LauncherActivity", "New client password generated and stored.")
+        }
+
+        binding.progressBarAuth.visibility = View.VISIBLE
+        binding.buttonStartMatch.isEnabled = false // Disable while authenticating
+        showDefaultProfileState("Authenticating...")
+
+        lifecycleScope.launch {
+            try {
+                val loginRequest = DeviceLoginRequestData(
+                    clientProvidedId = currentLocalClientId,
+                    clientGeneratedPassword = clientPassword
+                )
+                Log.d("LauncherActivity", "Calling /device-login with client ID: $currentLocalClientId")
+                val response = ApiClient.instance.deviceLogin(loginRequest)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val backendTokenResponse = response.body()!!
+                    TokenManager.saveToken(this@LauncherActivity, backendTokenResponse.access_token)
+                    Log.i("LauncherActivity", "Device login successful. JWT received.")
+
+                    backendTokenResponse.user?.let { user ->
+                        Log.i("LauncherActivity", "User data from login: ${user.username}, Level: ${user.level}")
+                        updateProfileUI(user)
+                        cacheProfileInfo(user)
+                        currentUserDbId = user.id // Store user's DB ID
+                    } ?: run {
+                        // If user object not in login response, fetch it immediately
+                        Log.w("LauncherActivity", "User object not in login response, fetching via /users/me.")
+                        fetchUserProfile(backendTokenResponse.access_token)
+                    }
+                    binding.buttonStartMatch.isEnabled = true
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Device login failed"
+                    Log.e("LauncherActivity", "Error from /device-login: ${response.code()} - $errorBody")
+                    if (response.code() == 401) { // Unauthorized
+                        Log.w("LauncherActivity", "Device login 401. Clearing stored password and retrying registration.")
+                        KeystoreHelper.clearStoredPassword(this@LauncherActivity) // Clear potentially bad password
+                        // Optionally retry login once, which will re-register with new password
+                        initiateDeviceLogin() // Be careful of infinite loops here; add a retry counter if needed
+                    } else {
+                        showDefaultProfileState("Authentication failed.")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("LauncherActivity", "Exception during /device-login", e)
+                showDefaultProfileState("Connection error during login.")
+            } finally {
+                binding.progressBarAuth.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun fetchUserProfile(tokenToUse: String) { // Takes token as param now
+        Log.d("LauncherActivity", "Fetching user profile with provided token...")
+        binding.progressBarAuth.visibility = View.VISIBLE
+        lifecycleScope.launch {
+            try {
+                // ApiClient.instance.getMyProfile() will use the token from TokenManager via interceptor
+                // However, if we just logged in, the interceptor might not have the new token yet if not set globally immediately.
+                // It's safer if ApiClient uses the *current* token from TokenManager.
+                // For this specific call after login, we *know* the token.
+                // The interceptor setup in ApiClient *should* pick up the latest from TokenManager.
+                val response = ApiClient.instance.getMyProfile()
+                if (response.isSuccessful) {
+                    response.body()?.let { user ->
+                        Log.i("LauncherActivity", "Profile fetched: ${user.username}, Level: ${user.level}, Words: ${user.wordsCount}")
+                        updateProfileUI(user)
+                        cacheProfileInfo(user)
+                        currentUserDbId = user.id
+                        binding.buttonStartMatch.isEnabled = true
+                    } ?: run {
+                        Log.w("LauncherActivity", "Profile fetch successful but body is null.")
+                        showDefaultProfileState("Could not load profile data.")
+                        binding.buttonStartMatch.isEnabled = false // Can't start if profile fails
+                    }
+                } else {
+                    Log.e("LauncherActivity", "Error fetching profile: ${response.code()} - ${response.errorBody()?.string()}")
+                    if (response.code() == 401 || response.code() == 403) { // Unauthorized or Forbidden
+                        Log.w("LauncherActivity", "Token invalid/expired. Clearing token and re-initiating login.")
+                        TokenManager.clearToken(this@LauncherActivity)
+                        clearCachedProfileInfo()
+                        initiateDeviceLogin() // Re-login
+                    } else {
+                        showDefaultProfileState("Could not load profile.")
+                        binding.buttonStartMatch.isEnabled = false
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("LauncherActivity", "Exception fetching profile", e)
+                showDefaultProfileState("Error connecting to server.")
+                binding.buttonStartMatch.isEnabled = false
+            } finally {
+                binding.progressBarAuth.visibility = View.GONE
+            }
+        }
+    }
+
+
+    private fun loadCachedProfileInfo() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val username = prefs.getString(PREF_USER_NAME, null)
+        val level = prefs.getInt(PREF_USER_LEVEL, -1)
+        // val experience = prefs.getInt(PREF_USER_EXPERIENCE, -1) // Not directly used in display string if wordsCount present
+        val wordsCount = prefs.getInt(PREF_USER_WORDS_COUNT, -1)
+        currentUserDbId = prefs.getInt(PREF_USER_DB_ID, -1).takeIf { it != -1 }
+
+
+        if (username != null && level != -1) {
+            binding.textViewPlayerName.text = username
+            val levelText = if (wordsCount > 0) {
+                "Level $level • $wordsCount words"
+            } else {
+                "Level $level" // Fallback if no words or XP to show initially
+            }
+            binding.textViewPlayerLevel.text = levelText
+            binding.profileSection.visibility = View.VISIBLE
+            binding.buttonStartMatch.isEnabled = true // Enable if cached info exists
+        } else {
+            showDefaultProfileState("Loading profile...") // Initial state before auth attempt
+            binding.buttonStartMatch.isEnabled = false
+        }
+    }
+
+    private fun updateProfileUI(user: UserPublic) {
+        binding.textViewPlayerName.text = user.username ?: "Player"
+        val levelText = if (user.wordsCount > 0) {
+            "Level ${user.level} • ${user.wordsCount} words"
+        } else {
+            "Level ${user.level} • ${user.experience} XP"
+        }
+        binding.textViewPlayerLevel.text = levelText
+        binding.profileSection.visibility = View.VISIBLE
+        Log.d("LauncherActivity", "Profile UI Updated: ${user.username}, Level ${user.level}, Words ${user.wordsCount}")
+    }
+
+    private fun showDefaultProfileState(message: String? = "Sign in to play!") {
+        binding.textViewPlayerName.text = "Guest Player"
+        binding.textViewPlayerLevel.text = message
+        binding.profileSection.visibility = View.VISIBLE // Or GONE based on design
+        // currentUserDbId = null // Clear if we are in a default state
+    }
+
+    private fun cacheProfileInfo(user: UserPublic) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit {
+            putString(PREF_USER_NAME, user.username)
+            putInt(PREF_USER_LEVEL, user.level)
+            putInt(PREF_USER_EXPERIENCE, user.experience)
+            putInt(PREF_USER_WORDS_COUNT, user.wordsCount)
+            putInt(PREF_USER_DB_ID, user.id)
+            apply()
+        }
+        Log.d("LauncherActivity", "Cached profile info: ${user.username}, ID: ${user.id}")
+    }
+
+    private fun clearCachedProfileInfo() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit {
+            remove(PREF_USER_NAME)
+            remove(PREF_USER_LEVEL)
+            remove(PREF_USER_EXPERIENCE)
+            remove(PREF_USER_WORDS_COUNT)
+            remove(PREF_USER_DB_ID)
+            apply()
+        }
+        currentUserDbId = null
+        Log.d("LauncherActivity", "Cleared cached profile info.")
+    }
+
+
 
     private fun initializeAnimatedElements() {
         Log.d("LauncherActivity", "initializeAnimatedElements: Attempting to initialize...") // ADDED LOG
@@ -287,6 +497,7 @@ class LauncherActivity : AppCompatActivity() {
             return
         }
 
+        checkAuthenticationAndFetchProfile()
 
         // If dimensions are ready
         if (parentViewWidth > 0 && parentViewHeight > 0 && animatedElementsList.isNotEmpty()) {
@@ -359,16 +570,28 @@ class LauncherActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         binding.buttonStartMatch.setOnClickListener {
-            //if (authViewModel.authStatus.value == AuthPgsStatus.AUTHENTICATED) {
-            startActivity(Intent(this, MatchmakingActivity::class.java))
+            if (TokenManager.getToken(this) != null && currentUserDbId != null) {
+                val intent = Intent(this, MatchmakingActivity::class.java).apply {
+                    putExtra(MatchmakingActivity.EXTRA_SELECTED_LANGUAGE, selectedLanguageCode)
+                    // MatchmakingActivity will use the globally available token
+                    // It also needs to know the user's DB ID if it's used for any direct identification
+                    // before its own /users/me call, but typically it would rely on the token.
+                    // For this refactor, MatchmakingActivity will fetch its own /users/me if it needs user details.
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Authenticating... Please wait.", Toast.LENGTH_SHORT).show()
+                // Auth process should be running or will be triggered by onResume if token is missing
+                checkAuthenticationAndFetchProfile() // Re-check/trigger auth
+            }
 
         }
 
         binding.profileSection.setOnClickListener {
-
-            Toast.makeText(this, "Edit Profile: Not yet implemented.", Toast.LENGTH_SHORT).show()
-            // Intent(this, ProfileActivity::class.java).also { startActivity(it) }
-
+            Toast.makeText(this, "Profile section clicked.", Toast.LENGTH_SHORT).show()
+            // Optionally, re-fetch profile on click if you want to ensure it's super fresh
+            val token = TokenManager.getToken(this)
+            if (token != null) fetchUserProfile(token) else initiateDeviceLogin()
         }
 
         binding.buttonViewLeaderboard.setOnClickListener {
@@ -383,8 +606,11 @@ class LauncherActivity : AppCompatActivity() {
         }
 
         binding.buttonSignOut.setOnClickListener {
-            // Handle sign out logic
-            Toast.makeText(this, "Sign Out clicked.", Toast.LENGTH_SHORT).show();
+            TokenManager.clearToken(this)
+            clearCachedProfileInfo()
+            showDefaultProfileState("Signed out. Log in to play!") // Updated message
+            binding.buttonStartMatch.isEnabled = false // Disable until re-auth
+            Toast.makeText(this, "Signed Out.", Toast.LENGTH_SHORT).show()
         }
 
     }

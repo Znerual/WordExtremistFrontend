@@ -31,10 +31,8 @@ class MatchmakingActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMatchmakingBinding
     private var matchmakingJob: Job? = null
 
-    private var databaseUserId: Int? = null
+    private var ownDatabaseUserId: Int? = null
     private var actualUsername: String? = null
-    private var localClientIdentifier: String? = null
-    private var clientGeneratedPasswordForSession: String? = null // Only needed for the initial login call
 
     private var gameLanguageForMatchmaking: String = "en" // Default
 
@@ -42,9 +40,7 @@ class MatchmakingActivity : AppCompatActivity() {
         const val EXTRA_SELECTED_LANGUAGE = "extra_selected_language"
         const val EXTRA_OWN_USER_ID = "extra_own_user_id"
         const val EXTRA_GAME_ID = "extra_game_id"
-        const val EXTRA_USER_ID = "extra_user_id"
         const val EXTRA_GAME_LANGUAGE_FOR_MAIN = "extra_game_language_for_main"
-        // Removed EXTRA_BACKEND_TOKEN
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,150 +52,88 @@ class MatchmakingActivity : AppCompatActivity() {
         Log.i("MatchmakingActivity", "Received language for matchmaking: $gameLanguageForMatchmaking")
 
 
-        // Get the local client identifier (e.g., Android ID)
-        localClientIdentifier = getLocalClientIdentifier()
-        if (localClientIdentifier == null) {
-            Toast.makeText(this, "Could not retrieve a unique client ID. Cannot proceed.", Toast.LENGTH_LONG).show()
-            Log.e("MatchmakingActivity", "Failed to get localClientIdentifier.")
-            finishAffinity() // Close app if critical ID missing
-            return
-        }
-        Log.i("MatchmakingActivity", "Using client identifier: $localClientIdentifier")
-
         binding.buttonCancelMatchmaking.setOnClickListener {
             cancelMatchmaking()
         }
 
+        val token = TokenManager.getToken(this)
+        if (token == null) {
+            Log.e("MatchmakingActivity", "No token found! User should be authenticated before starting matchmaking.")
+            Toast.makeText(this, "Authentication required. Please restart.", Toast.LENGTH_LONG).show()
+            // Navigate back to Launcher, which will handle login
+            startActivity(Intent(this, LauncherActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            })
+            finish()
+            return
+        }
+        // Token exists, fetch user profile to get DB ID and username for display/logic
+        fetchUserProfileAndStartPolling()
 
-        initiateDeviceLoginAndMatchmaking()
     }
 
-    // Removed observeViewModel() function
-    @SuppressLint("HardwareIds") // Suppress warning for Settings.Secure.ANDROID_ID
-    private fun getLocalClientIdentifier(): String? {
-        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
-    }
-
-    private fun initiateDeviceLoginAndMatchmaking() {
-        binding.textViewStatus.text = "Authenticating device..."
+    private fun fetchUserProfileAndStartPolling() {
+        binding.textViewStatus.text = "Verifying user..."
         binding.progressBarMatchmaking.visibility = View.VISIBLE
-        binding.buttonCancelMatchmaking.isEnabled = false // Keep disabled until user is registered
-
-        val currentLocalClientId = localClientIdentifier ?: return // Should not be null here
-
-        // Get or generate client password
-        var clientPassword = KeystoreHelper.getStoredPassword(this)
-        if (clientPassword == null) {
-            clientPassword = KeystoreHelper.generateAndStorePassword(this)
-        }
-        clientGeneratedPasswordForSession = clientPassword // Store for potential re-use in this session if needed
+        binding.buttonCancelMatchmaking.isEnabled = false
 
         lifecycleScope.launch {
             try {
-                val loginRequest = DeviceLoginRequestData( // Use the correct Pydantic model name
-                    clientProvidedId = currentLocalClientId,
-                    clientGeneratedPassword = clientPassword
-                )
-                Log.d("MatchmakingActivity", "Calling /device-login with client ID: $currentLocalClientId")
-                val response = ApiClient.instance.deviceLogin(loginRequest) // Call your new deviceLogin endpoint
-
-                if (response.isSuccessful && response.body() != null) {
-                    val backendToken = response.body()!!
-                    TokenManager.saveToken(this@MatchmakingActivity, backendToken.access_token)
-                    Log.i("MatchmakingActivity", "Device login successful. JWT received. Proceeding to matchmaking.")
-
-                    // Now that we have a JWT, matchmaking will use it via the ApiClient interceptor
-                    // We don't directly get user ID/name from this response, JWT is opaque to client mostly
-                    // The server will identify the user from the JWT for matchmaking.
-                    // For UI purposes or if MainActivity needs it immediately, you could decode JWT (not recommended)
-                    // or make a /users/me call here. For simplicity, let's assume server handles it.
-                    // We will need user ID for WebSocket, so a /users/me call is good practice
-                    fetchUserProfileAndStartMatchmaking()
-
-                } else {
-                    val errorBody = response.errorBody()?.string() ?: "Device login failed"
-                    Log.e("MatchmakingActivity", "Error from /device-login: ${response.code()} - $errorBody")
-                    binding.textViewStatus.text = "Authentication Failed (${response.code()})."
-                    binding.progressBarMatchmaking.visibility = View.GONE
-                    Toast.makeText(this@MatchmakingActivity, "Device authentication failed.", Toast.LENGTH_LONG).show()
-                    // Handle failed login (e.g. password mismatch, clear stored pass and retry registration?)
-                    if (response.code() == 401) { // Unauthorized usually means wrong password
-                        Log.w("MatchmakingActivity", "Potential password mismatch. Clearing stored password.")
-                        KeystoreHelper.clearStoredPassword(this@MatchmakingActivity)
-                        // Optionally, you could retry initiateDeviceLoginAndMatchmaking() once here to re-register.
-                    }
-                }
-            } catch (e: Exception) { // Catch all for network, http, json etc.
-                Log.e("MatchmakingActivity", "Exception during /device-login: ${e.message}", e)
-                binding.textViewStatus.text = "Error connecting to auth service."
-                binding.progressBarMatchmaking.visibility = View.GONE
-                Toast.makeText(this@MatchmakingActivity, "Authentication service error.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun fetchUserProfileAndStartMatchmaking() {
-        binding.textViewStatus.text = "Fetching user profile..."
-        lifecycleScope.launch {
-            try {
-                // ApiClient's interceptor will add the JWT to this call
-                val profileResponse = ApiClient.instance.getMyProfile() // Assumes getMyProfile uses the JWT
+                val profileResponse = ApiClient.instance.getMyProfile() // Uses token from TokenManager
                 if (profileResponse.isSuccessful && profileResponse.body() != null) {
                     val user = profileResponse.body()!!
-                    databaseUserId = user.id
+                    ownDatabaseUserId = user.id
                     actualUsername = user.username ?: "Player${user.id}"
-                    Log.i("MatchmakingActivity", "User profile fetched. DB ID: $databaseUserId, Username: $actualUsername")
-                    startMatchmakingPolling()
+                    Log.i("MatchmakingActivity", "User profile verified. DB ID: $ownDatabaseUserId, Username: $actualUsername, Lvl: ${user.level}")
+                    startMatchmakingPolling() // Proceed to matchmaking
                 } else {
-                    val errorBody = profileResponse.errorBody()?.string() ?: "Failed to fetch profile"
-                    Log.e("MatchmakingActivity", "Error fetching profile: ${profileResponse.code()} - $errorBody")
-                    binding.textViewStatus.text = "Error fetching user profile."
+                    val errorBody = profileResponse.errorBody()?.string() ?: "Failed to verify profile"
+                    Log.e("MatchmakingActivity", "Error verifying profile: ${profileResponse.code()} - $errorBody")
+                    binding.textViewStatus.text = "Error: Could not verify user."
                     binding.progressBarMatchmaking.visibility = View.GONE
-                    Toast.makeText(this@MatchmakingActivity, "Could not load user profile.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MatchmakingActivity, "User verification failed.", Toast.LENGTH_LONG).show()
+                    // Option: go back to Launcher if profile fetch fails critically
+                    navigateToLauncher(clearTask = true)
                 }
             } catch (e: Exception) {
-                Log.e("MatchmakingActivity", "Exception fetching profile: ${e.message}", e)
-                binding.textViewStatus.text = "Error loading profile."
+                Log.e("MatchmakingActivity", "Exception verifying profile: ${e.message}", e)
+                binding.textViewStatus.text = "Error: Connection problem."
                 binding.progressBarMatchmaking.visibility = View.GONE
-                Toast.makeText(this@MatchmakingActivity, "Profile loading error.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MatchmakingActivity, "Profile verification error.", Toast.LENGTH_LONG).show()
+                navigateToLauncher(clearTask = true)
             }
         }
     }
 
-
     private fun startMatchmakingPolling() {
-        if (databaseUserId == null) {
-            Log.e("MatchmakingActivity", "Cannot start matchmaking, user details not available.")
-            binding.textViewStatus.text = "Error: User profile needed for matchmaking."
+        if (ownDatabaseUserId == null) { // Should be set by fetchUserProfileAndStartPolling
+            Log.e("MatchmakingActivity", "Cannot start matchmaking, user DB ID not available.")
+            binding.textViewStatus.text = "Error: User ID missing."
             binding.progressBarMatchmaking.visibility = View.GONE
             return
         }
 
-        // Prevent starting multiple matchmaking jobs
         if (matchmakingJob?.isActive == true) {
             Log.d("MatchmakingActivity", "Matchmaking polling already in progress.")
             return
         }
 
-        Log.i("MatchmakingActivity", "Starting matchmaking polling for user DB ID: $databaseUserId (Username: $actualUsername)...")
+        Log.i("MatchmakingActivity", "Starting matchmaking polling for user DB ID: $ownDatabaseUserId (Username: $actualUsername)...")
         binding.textViewStatus.text = "Connecting to matchmaking..."
         binding.progressBarMatchmaking.visibility = View.VISIBLE
-        binding.buttonCancelMatchmaking.isEnabled = true // Enable cancel button now
+        binding.buttonCancelMatchmaking.isEnabled = true
 
         matchmakingJob = lifecycleScope.launch {
             var matchFound = false
-            val initialDelay = 250L
-            delay(initialDelay)
+            delay(250L) // Initial small delay
 
             while (isActive && !matchFound) {
                 try {
-                    Log.d("MatchmakingActivity", "Polling matchmaking API with user_id: $databaseUserId")
+                    Log.d("MatchmakingActivity", "Polling matchmaking API with language: $gameLanguageForMatchmaking")
+                    // ApiClient's interceptor adds the JWT for findMatch
                     val response = ApiClient.instance.findMatch(language = gameLanguageForMatchmaking)
 
-                    if (!isActive) {
-                        Log.d("MatchmakingActivity", "Matchmaking job cancelled after API response.")
-                        break
-                    }
+                    if (!isActive) break // Job cancelled
 
                     if (response.isSuccessful) {
                         val matchmakingStatus = response.body()
@@ -208,18 +142,24 @@ class MatchmakingActivity : AppCompatActivity() {
                                 "matched" -> {
                                     if (matchmakingStatus.game_id != null && matchmakingStatus.your_player_id_in_game != null) {
                                         Log.i("MatchmakingActivity", "Match found! Game ID: ${matchmakingStatus.game_id}, Opponent: ${matchmakingStatus.opponent_name}, Your ID in Game: ${matchmakingStatus.your_player_id_in_game}")
-                                        databaseUserId = matchmakingStatus.your_player_id_in_game
+
+                                        // ownDatabaseUserId should already be our correct ID from /users/me.
+                                        // matchmakingStatus.your_player_id_in_game should match it.
+                                        if (ownDatabaseUserId != matchmakingStatus.your_player_id_in_game) {
+                                            Log.w("MatchmakingActivity", "Mismatch between local ownDatabaseUserId ($ownDatabaseUserId) and server's your_player_id_in_game (${matchmakingStatus.your_player_id_in_game}). Using server's.")
+                                            ownDatabaseUserId = matchmakingStatus.your_player_id_in_game
+                                        }
+
                                         binding.textViewStatus.text = "Match Found!"
                                         binding.progressBarMatchmaking.visibility = View.GONE
                                         Toast.makeText(this@MatchmakingActivity, "Match found with ${matchmakingStatus.opponent_name ?: "Player"}!", Toast.LENGTH_LONG).show()
                                         matchFound = true
                                         binding.buttonCancelMatchmaking.isEnabled = false
-                                        // Ensure we use the correct ID from the match response (should be same as currentDbUserId)
-                                        proceedToGame(matchmakingStatus.game_id, databaseUserId!!,  matchmakingStatus.language ?: gameLanguageForMatchmaking)
+                                        proceedToGame(matchmakingStatus.game_id, ownDatabaseUserId!!, matchmakingStatus.language ?: gameLanguageForMatchmaking)
                                     } else {
                                         Log.e("MatchmakingActivity", "Error: Matched status received but game_id or your_player_id_in_game is null!")
                                         binding.textViewStatus.text = "Error: Invalid match data."
-                                        delay(5000)
+                                        if (isActive) delay(5000)
                                     }
                                 }
                                 "waiting" -> {
@@ -234,29 +174,40 @@ class MatchmakingActivity : AppCompatActivity() {
                         } else {
                             Log.e("MatchmakingActivity", "Matchmaking response body is null.")
                             binding.textViewStatus.text = "Error: Empty response."
-                            delay(5000)
+                            if (isActive) delay(5000)
                         }
-                    } else {
+                    } else { // HTTP error
                         val errorBody = response.errorBody()?.string() ?: "Unknown server error"
                         Log.e("MatchmakingActivity", "Matchmaking API error: ${response.code()} - $errorBody")
                         binding.textViewStatus.text = "Server Error (${response.code()}). Retrying..."
-                        delay(5000)
+                        if (response.code() == 401) { // Token might be invalid
+                            Toast.makeText(this@MatchmakingActivity, "Session expired. Please restart.", Toast.LENGTH_LONG).show()
+                            navigateToLauncher(clearTask = true)
+                            break // Exit loop
+                        }
+                        if (isActive) delay(5000)
                     }
-                } catch (e: IOException) {
+                } catch (e: IOException) { // Network errors
                     if (!isActive) break
-                    Log.e("MatchmakingActivity", "Network error during matchmaking poll: ${e.message}")
+                    Log.e("MatchmakingActivity", "Network error during poll: ${e.message}")
                     binding.textViewStatus.text = "Network error. Check connection."
-                    delay(5000)
-                } catch (e: HttpException) {
+                    if (isActive) delay(5000)
+                } catch (e: HttpException) { // Other HTTP errors not caught by response.isSuccessful
                     if (!isActive) break
-                    Log.e("MatchmakingActivity", "HTTP error during matchmaking poll: ${e.code()} - ${e.message()}")
+                    Log.e("MatchmakingActivity", "HTTP error during poll: ${e.code()} - ${e.message()}")
                     binding.textViewStatus.text = "Server error (${e.code()}). Retrying..."
-                    delay(5000)
-                } catch (e: Exception) {
+                    if (e.code() == 401) {
+                        Toast.makeText(this@MatchmakingActivity, "Session expired. Please restart.", Toast.LENGTH_LONG).show()
+                        navigateToLauncher(clearTask = true)
+                        break
+                    }
+                    if (isActive) delay(5000)
+                }
+                catch (e: Exception) { // Other unexpected errors
                     if (!isActive) break
-                    Log.e("MatchmakingActivity", "Unexpected error during matchmaking poll: ${e.message}", e)
+                    Log.e("MatchmakingActivity", "Unexpected error during poll: ${e.message}", e)
                     binding.textViewStatus.text = "An error occurred. Retrying..."
-                    delay(5000)
+                    if (isActive) delay(5000)
                 }
 
                 if (!matchFound && isActive) {
@@ -266,129 +217,104 @@ class MatchmakingActivity : AppCompatActivity() {
                 }
             }
 
-            if (!matchFound && isActive) {
+            if (!matchFound && isActive) { // Loop finished but no match and not cancelled
                 Log.w("MatchmakingActivity", "Matchmaking loop finished without finding a match.")
                 binding.textViewStatus.text = "Could not find a match. Try again?"
                 binding.progressBarMatchmaking.visibility = View.GONE
-                binding.buttonCancelMatchmaking.isEnabled = false
+                binding.buttonCancelMatchmaking.isEnabled = false // Or allow retry
             }
         }
     }
 
-    private fun proceedToGame(gameId: String, ownDbUserId: Int, actualGameLanguage: String) {
-        matchmakingJob?.cancel()
+
+    private fun proceedToGame(gameId: String, gameOwnUserId: Int, actualGameLanguage: String) {
+        matchmakingJob?.cancel() // Ensure polling is stopped
         matchmakingJob = null
         binding.progressBarMatchmaking.visibility = View.GONE
 
-        val jwtToken = TokenManager.getToken(this) // Get current JWT for WebSocket
+        val jwtToken = TokenManager.getToken(this) // For WebSocket connection
         if (jwtToken == null) {
             Toast.makeText(this, "Authentication error, cannot start game.", Toast.LENGTH_LONG).show()
             Log.e("MatchmakingActivity", "JWT token is null when proceeding to game.")
-            // Optional: navigate back to launcher or try re-auth
-            initiateDeviceLoginAndMatchmaking() // Simple retry, could be more sophisticated
+            navigateToLauncher(clearTask = true) // Go back to Launcher to re-auth
             return
         }
 
-        Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user DB ID: $ownDbUserId")
+        Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user DB ID: $gameOwnUserId with language $actualGameLanguage")
         val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra(EXTRA_OWN_USER_ID, ownDbUserId)
+            putExtra(EXTRA_OWN_USER_ID, gameOwnUserId) // User's DB ID for game identification
             putExtra(EXTRA_GAME_ID, gameId)
-            putExtra(EXTRA_USER_ID, ownDbUserId) // If MainActivity uses this for self
             putExtra(EXTRA_GAME_LANGUAGE_FOR_MAIN, actualGameLanguage)
-            // NO LONGER PASS TOKEN VIA INTENT if WebSocket uses it in URL
-            // putExtra(MainActivity.EXTRA_BACKEND_TOKEN, jwtToken) // If MainActivity needs it for other things
+            // MainActivity's GameWebSocketClient will use TokenManager to get the token for its URL
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
         finish()
     }
 
+
     private fun cancelMatchmaking() {
-        val userIdToCancelWith = databaseUserId // Use the fetched DB ID
-        if (userIdToCancelWith == null) {
-            Log.w("MatchmakingActivity", "Cannot cancel matchmaking, user ID not available.")
-            binding.textViewStatus.text = "Matchmaking Cancelled (User not registered)."
-            binding.progressBarMatchmaking.visibility = View.GONE
-            binding.buttonCancelMatchmaking.isEnabled = false // Keep disabled
-            // Potentially navigate back or allow retry of registration
-            navigateToLauncher()
-            return
-        }
-
         if (matchmakingJob?.isActive != true) {
-            Log.d("MatchmakingActivity", "Matchmaking not active or already cancelled for user ID $userIdToCancelWith.")
-            binding.textViewStatus.text = "Matchmaking Cancelled."
-            binding.progressBarMatchmaking.visibility = View.GONE
-            binding.buttonCancelMatchmaking.isEnabled = false
+            Log.d("MatchmakingActivity", "Matchmaking not active or already cancelled.")
+            // If already cancelled or finished, just navigate back
             navigateToLauncher()
             return
         }
 
-        Log.i("MatchmakingActivity", "Attempting to cancel matchmaking for user DB ID: $userIdToCancelWith...")
-        binding.buttonCancelMatchmaking.isEnabled = false
+        Log.i("MatchmakingActivity", "Attempting to cancel matchmaking polling...")
+        binding.buttonCancelMatchmaking.isEnabled = false // Disable during cancellation
         binding.textViewStatus.text = "Cancelling matchmaking..."
         binding.progressBarMatchmaking.visibility = View.VISIBLE
 
-        matchmakingJob?.cancel()
+        matchmakingJob?.cancel() // Cancel the coroutine
         matchmakingJob = null
 
+        // Also call the backend to remove from pool
         lifecycleScope.launch {
             try {
-                Log.d("MatchmakingActivity", "Calling cancelMatchmaking API for user DB ID: $userIdToCancelWith")
-                val response = ApiClient.instance.cancelMatchmaking()
+                Log.d("MatchmakingActivity", "Calling cancelMatchmaking API on backend.")
+                val response = ApiClient.instance.cancelMatchmaking() // Uses token from interceptor
 
                 if (response.isSuccessful) {
-                    Log.i("MatchmakingActivity", "Matchmaking successfully cancelled on backend for user DB ID: $userIdToCancelWith.")
-                    binding.textViewStatus.text = "Matchmaking Cancelled."
+                    Log.i("MatchmakingActivity", "Matchmaking successfully cancelled on backend.")
                     Toast.makeText(this@MatchmakingActivity, "Matchmaking cancelled", Toast.LENGTH_SHORT).show()
                 } else {
                     val errorBody = response.errorBody()?.string() ?: "Unknown server error"
                     Log.e("MatchmakingActivity", "Failed to cancel matchmaking on backend: ${response.code()} - $errorBody")
-                    binding.textViewStatus.text = "Cancellation failed (Server Error ${response.code()})"
                     Toast.makeText(this@MatchmakingActivity, "Could not cancel on server.", Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: IOException) {
-                Log.e("MatchmakingActivity", "Network error during cancellation: ${e.message}")
-                binding.textViewStatus.text = "Cancellation failed (Network Error)"
-                Toast.makeText(this@MatchmakingActivity, "Network error during cancellation.", Toast.LENGTH_SHORT).show()
-            } catch (e: HttpException) {
-                Log.e("MatchmakingActivity", "HTTP error during cancellation: ${e.code()} - ${e.message()}")
-                binding.textViewStatus.text = "Cancellation failed (Server Error ${e.code()})"
-                Toast.makeText(this@MatchmakingActivity, "Server error during cancellation.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Log.e("MatchmakingActivity", "Unexpected error during cancellation: ${e.message}", e)
-                binding.textViewStatus.text = "Cancellation failed (Unknown Error)"
+                Log.e("MatchmakingActivity", "Error during backend cancellation: ${e.message}", e)
                 Toast.makeText(this@MatchmakingActivity, "Error during cancellation.", Toast.LENGTH_SHORT).show()
             } finally {
                 binding.progressBarMatchmaking.visibility = View.GONE
-                binding.buttonCancelMatchmaking.isEnabled = false
-                navigateToLauncher() // Navigate back after cancellation attempt
+                // Navigate back to LauncherActivity after cancellation attempt
+                navigateToLauncher()
             }
         }
     }
 
-    private fun navigateToLauncher() {
-        val intent = Intent(this, LauncherActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+    private fun navigateToLauncher(clearTask: Boolean = false) {
+        val intent = Intent(this, LauncherActivity::class.java)
+        if (clearTask) {
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
-        finish()
+        if (clearTask) finish() // Finish MatchmakingActivity if clearing task
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
-        val currentDbUserId = databaseUserId // Capture current value
         if (matchmakingJob?.isActive == true) {
-            Log.d("MatchmakingActivity", "onDestroy called, cancelling active matchmaking job for user DB ID: $currentDbUserId")
+            Log.d("MatchmakingActivity", "onDestroy called, cancelling active matchmaking job.")
             matchmakingJob?.cancel()
             matchmakingJob = null
-
-            if (TokenManager.getToken(this) != null) { // Only if authenticated
+            // Attempt backend cancellation only if token exists and job was active
+            if (TokenManager.getToken(this) != null) {
                 lifecycleScope.launch {
                     try {
-                        Log.i("MatchmakingActivity", "Attempting backend cancellation on destroy")
-                        ApiClient.instance.cancelMatchmaking() // JWT identifies
+                        Log.i("MatchmakingActivity", "Attempting backend cancellation on destroy for active job.")
+                        ApiClient.instance.cancelMatchmaking()
                     } catch (e: Exception) {
                         Log.w("MatchmakingActivity", "Error during backend cancellation on destroy: ${e.message}")
                     }
