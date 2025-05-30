@@ -48,7 +48,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     // Removed authViewModel
     private var gameWebSocketClient: GameWebSocketClient? = null
     private var currentGameId: String? = null
-    private var currentUserId: Int = -1
     private var ownUserId: Int = -1
     private var currentGameLanguage: String = "en"
     // Removed currentBackendToken
@@ -67,7 +66,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // --- Get Game Info from Intent ---
         ownUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_OWN_USER_ID, -1)
         currentGameId = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_ID)
-        currentUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_USER_ID, -1)
         currentGameLanguage = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_LANGUAGE_FOR_MAIN) ?: "en"
         // Removed backend token retrieval
 
@@ -79,13 +77,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             // Or navigate back to an appropriate starting activity
             startActivity(Intent(this, LauncherActivity::class.java))
             return // Stop further execution in onCreate
-        }
-
-        if (currentUserId == -1) {
-            Log.e("MainActivity", "User ID is missing! Cannot start game.")
-            Toast.makeText(this, "Error: User ID not found.", Toast.LENGTH_LONG).show()
-            startActivity(Intent(this, LauncherActivity::class.java))
-            return
         }
 
         if (ownUserId == -1) {
@@ -397,25 +388,15 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
     private fun handleEmojiBroadcastAction(payload: JSONObject) {
         Log.d("MainActivity_WS", "Handling opponent action: $payload")
-        val actionType = payload.optString("action")
-        when (actionType) {
 
-            "send_emoji" -> {
-                val emojiTypeStr = payload.optString("emoji")
-                try {
-                    val emojiType = EmojiType.valueOf(emojiTypeStr)
-                    showOpponentEmojiReaction(emojiType)
-                } catch (e: IllegalArgumentException) {
-                    Log.w("MainActivity_WS", "Invalid emoji type received: $emojiTypeStr")
-                }
-            }
-
-
-            // Add other opponent actions
+        val emojiTypeStr = payload.optString("emoji")
+        try {
+            val emojiType = EmojiType.valueOf(emojiTypeStr)
+            showOpponentEmojiReaction(emojiType)
+        } catch (e: IllegalArgumentException) {
+            Log.w("MainActivity_WS", "Invalid emoji type received: $emojiTypeStr")
         }
-        // Often, after an opponent action, the server sends a full game_state update.
-        // If so, you might not need to manually update parts of the state here.
-        // However, animations might be triggered directly.
+
     }
 
     private fun handleValidationResultFromServer(payload: JSONObject) {
