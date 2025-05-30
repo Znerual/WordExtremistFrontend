@@ -31,5 +31,14 @@ data class UserPublic(
     val createdAt: String, // Or use a Date/DateTime type with a custom Gson adapter
 
     @SerializedName("last_login_at")
-    val lastLoginAt: String?
+    val lastLoginAt: String?,
+
+    @SerializedName("experience")
+    val experience: Int,
+
+    @SerializedName("level")
+    val level: Int,
+
+    @SerializedName("words_count")
+    val wordsCount: Int
 )
