@@ -60,6 +60,8 @@ dependencies {
     // OkHttp for WebSocket client (explicitly if not pulled by Retrofit version you want)
     implementation(libs.okhttp.core) // Often pulled in by Retrofit, but good to be explicit if version matters
 
+    // UI
+    implementation(libs.circleimageview)
     // Google Sign-In
 
 

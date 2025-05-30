@@ -27,6 +27,8 @@ gson = "2.13.1" # Matches retrofit converter, or use a newer standalone Gson if 
 playServicesGamesV2 = "20.1.2"
 activity = "1.10.1"
 
+# UI
+circleimageview = "3.1.0"
 
 
 [libraries]
@@ -61,6 +63,8 @@ okhttp-loggingInterceptor = { module = "com.squareup.okhttp3:logging-interceptor
 gms-play-services-games-v2 = { module = "com.google.android.gms:play-services-games-v2", version.ref = "playServicesGamesV2" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 
+# UI
+circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.ref = "circleimageview" }
 
 
 [plugins]

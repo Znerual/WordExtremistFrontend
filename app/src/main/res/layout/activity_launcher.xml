@@ -4,100 +4,342 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
+    android:background="@color/background"
     tools:context=".LauncherActivity">
 
-    <ImageView
-        android:id="@+id/imageViewAppLogo"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_marginTop="32dp"
+    <!-- Subtle geometric pattern background -->
+    <View
+        android:id="@+id/backgroundPattern"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/geometric_pattern_background"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:src="@mipmap/ic_launcher" /> <!-- Replace with your actual app logo -->
-
-    <TextView
-        android:id="@+id/textViewWelcome"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:textSize="20sp"
-        tools:text="Welcome, PlayerName!"
-        app:layout_constraintTop_toBottomOf="@id/imageViewAppLogo"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <ProgressBar
-        android:id="@+id/progressBarAuth"
-        style="?android:attr/progressBarStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:visibility="gone"
-        tools:visibility="visible"
-        app:layout_constraintTop_toBottomOf="@id/textViewWelcome"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
+    <!-- Top Section - Profile -->
     <LinearLayout
-        android:id="@+id/layoutMenuOptions"
+        android:id="@+id/profileSection"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        app:layout_constraintTop_toBottomOf="@+id/progressBarAuth"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:background="@drawable/profile_card_background"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintVertical_bias="0.3">
+        app:layout_constraintHorizontal_bias="0.5"
+        android:layout_marginTop="32dp"
+        android:elevation="4dp">
 
-        <TextView
-            android:id="@+id/textViewLanguageLabel"
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/imageViewProfilePicture"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/avatar_dummy"
+            app:civ_border_width="2dp"
+            app:civ_border_color="@color/primary"
+            android:elevation="4dp"/>
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Select Language:"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="vertical"
+            android:layout_marginStart="12dp"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/textViewPlayerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                tools:text="WordMaster"
+                android:elevation="4dp"/>
+
+            <TextView
+                android:id="@+id/textViewPlayerLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                tools:text="Level 12 • 1,250 words"
+                android:elevation="4dp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Language Selection -->
+    <LinearLayout
+        android:id="@+id/languageSection"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/profileSection"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="4dp">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_language"
+            android:layout_marginEnd="8dp"
+            android:elevation="4dp"/>
 
         <Spinner
             android:id="@+id/spinnerLanguage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:minWidth="150dp"
-            android:layout_marginBottom="24dp"/>
-
-        <Button
-            android:id="@+id/buttonStartMatch"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="Start New Match" />
-
-        <Button
-            android:id="@+id/buttonEditProfile"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="Edit Profile" />
-
-        <Button
-            android:id="@+id/buttonViewLeaderboard"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:text="View Leaderboard" />
+            android:minWidth="120dp"
+            android:background="@drawable/spinner_background"
+            android:elevation="4dp"/>
 
     </LinearLayout>
 
-    <Button
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBarAuth"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:indeterminateTint="@color/primary"
+        tools:visibility="visible"
+        app:layout_constraintTop_toBottomOf="@id/languageSection"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="4dp"/>
+
+    <!-- Central Action Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonStartMatch"
+        android:layout_width="280dp"
+        android:layout_height="72dp"
+        android:text="🚀 START BATTLE"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_on_primary"
+        android:backgroundTint="@color/primary"
+        android:elevation="8dp"
+        app:cornerRadius="36dp"
+        app:iconGravity="textStart"
+        app:iconSize="28dp"
+        app:iconTint="@color/text_on_primary"
+        app:layout_constraintTop_toBottomOf="@id/progressBarAuth"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionsContainer"
+        app:layout_constraintVertical_bias="0.6"
+        android:layout_marginTop="32dp" />
+
+    <!-- Bottom Actions Container -->
+    <LinearLayout
+        android:id="@+id/bottomActionsContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="80dp"
+        android:layout_marginHorizontal="32dp"
+        app:layout_constraintBottom_toTopOf="@id/buttonSignOut"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:elevation="4dp">
+
+        <!-- Treasure Chest -->
+        <LinearLayout
+            android:id="@+id/buttonTreasureChest"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp"
+            android:background="@drawable/action_card_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:layout_marginEnd="8dp"
+            android:elevation="4dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_treasure_chest"
+                android:elevation="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Word Vault"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="8dp"
+                android:elevation="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Best Words"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:elevation="4dp"/>
+
+        </LinearLayout>
+
+        <!-- Leaderboard -->
+        <LinearLayout
+            android:id="@+id/buttonViewLeaderboard"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp"
+            android:background="@drawable/action_card_background"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?android:attr/selectableItemBackground"
+            android:layout_marginStart="8dp"
+            android:elevation="4dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_leaderboard"
+                android:elevation="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Leaderboard"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="8dp"
+                android:elevation="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Top Players"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:elevation="4dp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Sign Out Button -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonSignOut"
+        style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Sign Out"
-        android:layout_marginBottom="16dp"
-        style="?android:attr/borderlessButtonStyle"
+        android:textColor="@color/text_secondary"
+        android:layout_marginBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        android:elevation="4dp"/>
+
+    <!-- Floating decorative pattern elements -->
+    <ImageView
+        android:id="@+id/decorativeElement1"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_letter_a"
+        android:alpha="0.18"
+        app:tint="@color/primary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="80dp"
+        android:layout_marginEnd="32dp"
+        android:rotation="15"
+        android:elevation="0dp"/>
+
+    <ImageView
+        android:id="@+id/decorativeElement2"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_word_bubble"
+        android:alpha="0.16"
+        app:tint="@color/secondary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="120dp"
+        android:layout_marginStart="24dp"
+        android:rotation="-10"
+        android:elevation="0dp"/>
+
+    <ImageView
+        android:id="@+id/decorativeElement3"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_letter_w"
+        android:alpha="0.15"
+        app:tint="@color/accent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="200dp"
+        android:layout_marginEnd="64dp"
+        android:rotation="25"
+        android:elevation="0dp"/>
+
+    <ImageView
+        android:id="@+id/decorativeElement4"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginBottom="128dp"
+        android:alpha="0.1"
+        android:rotation="-20"
+        android:src="@drawable/ic_geometric_shape"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionsContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:tint="@color/primary"
+        android:elevation="0dp"/>
+
+    <ImageView
+        android:id="@+id/decorativeElement5"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_word_bubble"
+        android:alpha="0.18"
+        app:tint="@color/secondary"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionsContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="80dp"
+        android:layout_marginEnd="48dp"
+        android:rotation="12"
+        android:elevation="0dp"/>
+
+    <ImageView
+        android:id="@+id/decorativeElement6"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@drawable/ic_letter_e"
+        android:alpha="0.15"
+        app:tint="@color/accent"
+        app:layout_constraintTop_toBottomOf="@id/languageSection"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="60dp"
+        android:layout_marginStart="60dp"
+        android:rotation="-8"
+        android:elevation="0dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

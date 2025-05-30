@@ -18,6 +18,68 @@
     <!-- Colors for Mistake Animations -->
     <color name="mistake_local_color">#FF6F00</color> <!-- A strong Orange/Amber for local player mistake (Material Amber 800) -->
     <color name="mistake_opponent_color">#FF9800</color> <!-- A slightly lighter Orange for opponent mistake (Material Orange 500), or could be same as local -->
+
+
+    <!-- Primary Colors -->
+    <color name="primary">#FF6B35</color>           <!-- Vibrant orange - energetic and creative -->
+    <color name="primary_variant">#E55A2B</color>   <!-- Darker orange variant -->
+    <color name="primary_light">#FF8A65</color>     <!-- Lighter orange for highlights -->
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#4ECDC4</color>         <!-- Warm teal - friendly and modern -->
+    <color name="secondary_variant">#26A69A</color> <!-- Deeper teal variant -->
+    <color name="secondary_light">#80CBC4</color>   <!-- Light teal for accents -->
+
+    <!-- Accent Colors -->
+    <color name="accent">#FFD23F</color>            <!-- Warm yellow - excitement and victory -->
+    <color name="accent_variant">#FFC107</color>    <!-- Golden yellow variant -->
+
+    <!-- Background Colors -->
+    <color name="background">#FAFAFA</color>        <!-- Soft white background -->
+    <color name="surface">#FFFFFF</color>           <!-- Pure white for cards/surfaces -->
+    <color name="surface_variant">#F5F5F5</color>   <!-- Subtle gray for elevated surfaces -->
+
+    <!-- Text Colors -->
+    <color name="text_primary">#2D3748</color>      <!-- Dark gray for primary text -->
+    <color name="text_secondary">#718096</color>    <!-- Medium gray for secondary text -->
+    <color name="text_hint">#A0AEC0</color>         <!-- Light gray for hints/disabled text -->
+    <color name="text_on_primary">#FFFFFF</color>   <!-- White text on primary colors -->
+    <color name="text_on_secondary">#FFFFFF</color> <!-- White text on secondary colors -->
+
+    <!-- Game-Specific Colors -->
+    <color name="word_highlight">#FFF3E0</color>    <!-- Soft orange tint for highlighted words -->
+    <color name="correct_answer">#66BB6A</color>    <!-- Fresh green for correct answers -->
+    <color name="incorrect_answer">#EF5350</color>  <!-- Warm red for mistakes -->
+    <color name="timer_warning">#FF9800</color>     <!-- Orange for timer warnings -->
+    <color name="timer_critical">#F44336</color>    <!-- Red for critical timer -->
+
+    <!-- Player Colors -->
+    <color name="player_one">#FF6B35</color>       <!-- Primary orange for player 1 -->
+    <color name="player_two">#4ECDC4</color>       <!-- Secondary teal for player 2 -->
+
+    <!-- UI Element Colors -->
+    <color name="button_primary">#FF6B35</color>    <!-- Primary button color -->
+    <color name="button_secondary">#4ECDC4</color>  <!-- Secondary button color -->
+    <color name="divider">#E0E0E0</color>          <!-- Light gray for dividers -->
+    <color name="shadow">#1A000000</color>         <!-- Subtle shadow (10% black) -->
+
+    <!-- Status Colors -->
+    <color name="success">#66BB6A</color>          <!-- Success state -->
+    <color name="warning">#FFD23F</color>          <!-- Warning state -->
+    <color name="error">#EF5350</color>            <!-- Error state -->
+    <color name="info">#4ECDC4</color>             <!-- Information state -->
+
+    <color name="secondary_container_light_teal">#E0F2F1</color> <!-- Very light teal (derived from #4ECDC4) -->
+    <color name="on_secondary_container_dark_text">#004D40</color> <!-- Dark teal for text on light teal container (WCAG AA against #E0F2F1) -->
+
+    <!-- Also consider defining primary container colors if components start looking for them -->
+    <color name="primary_container_light_orange">#FFF3E0</color> <!-- Very light orange (derived from #FF6B35, similar to word_highlight) -->
+    <color name="on_primary_container_dark_text">#5F270E</color> <!-- Dark brown/orange for text on light orange container (WCAG AA against #FFF3E0) -->
+
+    <color name="error_container_light_red">#FFEBEE</color> <!-- Light Red (e.g., Material Red 50) -->
+    <!-- Fallback for ripple color if not otherwise defined by components -->
+    <color name="ripple_light_gray">#20718096</color>
+
 </resources>
 
     
