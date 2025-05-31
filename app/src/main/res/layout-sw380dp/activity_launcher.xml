@@ -39,8 +39,8 @@
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/imageViewProfilePicture"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@drawable/avatar_dummy"
             app:civ_border_width="2dp"
             app:civ_border_color="@color/primary"
@@ -50,14 +50,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="16dp"
             android:elevation="4dp">
 
             <TextView
                 android:id="@+id/textViewPlayerName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 tools:text="WordMaster"
@@ -67,7 +67,7 @@
                 android:id="@+id/textViewPlayerLevel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
+                android:textSize="18sp"
                 android:textColor="@color/text_secondary"
                 tools:text="Level 12 • 1,250 words"
                 android:elevation="4dp"/>
@@ -83,17 +83,17 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="30dp"
         app:layout_constraintTop_toBottomOf="@id/profileSection"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:elevation="4dp">
 
         <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/ic_language"
-            android:layout_marginEnd="8dp"
+            android:layout_marginEnd="16dp"
             android:elevation="4dp"/>
 
         <Spinner
@@ -124,17 +124,17 @@
     <!-- Central Action Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonStartMatch"
-        android:layout_width="280dp"
+        android:layout_width="300dp"
         android:layout_height="72dp"
         android:text="🚀 START BATTLE"
-        android:textSize="20sp"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="@color/text_on_primary"
         android:backgroundTint="@color/primary"
         android:elevation="8dp"
         app:cornerRadius="36dp"
         app:iconGravity="textStart"
-        app:iconSize="28dp"
+        app:iconSize="32dp"
         app:iconTint="@color/text_on_primary"
         app:layout_constraintTop_toBottomOf="@id/progressBarAuth"
         app:layout_constraintStart_toStartOf="parent"
@@ -175,8 +175,8 @@
             android:elevation="4dp">
 
             <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:src="@drawable/ic_treasure_chest"
                 android:elevation="4dp"/>
 
@@ -184,7 +184,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Word Vault"
-                android:textSize="14sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:layout_marginTop="8dp"
@@ -194,7 +194,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Best Words"
-                android:textSize="12sp"
+                android:textSize="16sp"
                 android:textColor="@color/text_secondary"
                 android:elevation="4dp"/>
 
@@ -217,8 +217,8 @@
             android:elevation="4dp">
 
             <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:src="@drawable/ic_leaderboard"
                 android:elevation="4dp"/>
 
@@ -226,7 +226,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Leaderboard"
-                android:textSize="14sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary"
                 android:layout_marginTop="8dp"
@@ -236,7 +236,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Top Players"
-                android:textSize="12sp"
+                android:textSize="16sp"
                 android:textColor="@color/text_secondary"
                 android:elevation="4dp"/>
 
