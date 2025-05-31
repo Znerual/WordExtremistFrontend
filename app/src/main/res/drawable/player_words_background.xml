@@ -1,0 +1,6 @@
+<!-- res/drawable/player_words_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface_variant" /> <!-- Slightly different from parent card for subtle depth -->
+    <corners android:radius="12dp" />
+</shape>

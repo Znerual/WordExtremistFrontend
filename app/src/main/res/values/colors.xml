@@ -63,6 +63,11 @@
     <color name="divider">#E0E0E0</color>          <!-- Light gray for dividers -->
     <color name="shadow">#1A000000</color>         <!-- Subtle shadow (10% black) -->
 
+    <!-- Sand Animation Colors -->
+    <color name="sand_timer_top">#4DFFD23F</color>   <!-- Accent color (Warm yellow) with ~30% alpha -->
+    <color name="sand_timer_middle">#66FF8A65</color> <!-- Primary Light (Lighter orange) with ~40% alpha -->
+    <color name="sand_timer_bottom">#80FF6B35</color> <!-- Primary (Vibrant orange) with ~50% alpha -->
+
     <!-- Status Colors -->
     <color name="success">#66BB6A</color>          <!-- Success state -->
     <color name="warning">#FFD23F</color>          <!-- Warning state -->

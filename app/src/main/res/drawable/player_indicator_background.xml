@@ -1,0 +1,6 @@
+<!-- res/drawable/player_indicator_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@android:color/white" /> <!-- Base color for tinting -->
+    <!-- Size will be controlled by the View's layout_width/height -->
+</shape>

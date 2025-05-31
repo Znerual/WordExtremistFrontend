@@ -1,0 +1,7 @@
+<!-- res/drawable/status_bar_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface" />
+    <!-- No rounded corners needed for a typical status bar background that spans the width -->
+    <!-- If you want a slight visual separation from content below, you could add bottom padding or a subtle bottom border -->
+</shape>

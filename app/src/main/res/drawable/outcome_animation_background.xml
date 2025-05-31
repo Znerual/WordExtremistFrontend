@@ -1,0 +1,8 @@
+<!-- res/drawable/outcome_animation_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface" />
+    <corners android:radius="16dp" />
+    <!-- Stroke can be added if desired, e.g., using @color/accent or dynamic based on win/loss -->
+    <!-- <stroke android:width="2dp" android:color="@color/accent_variant" /> -->
+</shape>

@@ -1,0 +1,6 @@
+<!-- res/drawable/score_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/secondary_container_light_teal" /> <!-- Subtle, related to secondary -->
+    <corners android:radius="8dp" />
+</shape>
