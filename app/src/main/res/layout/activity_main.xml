@@ -17,16 +17,141 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Subtle geometric pattern background -->
-<!--    <View-->
-<!--        android:id="@+id/backgroundPattern"-->
-<!--        android:layout_width="0dp"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:background="@drawable/geometric_pattern_background"-->
-<!--        app:layout_constraintTop_toTopOf="parent"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent" />-->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/vsAnimationOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorPrimaryContainer"
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:elevation="20dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Player 1 Card (for VS animation) -->
+        <LinearLayout
+            android:id="@+id/vsPlayer1Card"
+            android:layout_width="140dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="16dp"
+            android:background="@drawable/player_card_vs_background"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/textViewVS"
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintHorizontal_bias="0.5">
+
+            <ImageView
+                android:id="@+id/vsPlayer1Avatar"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_avatar_placeholder"
+                app:tint="?attr/colorOnPrimaryContainer"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/vsPlayer1Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="You"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnPrimaryContainer"/>
+
+            <TextView
+                android:id="@+id/vsPlayer1Level"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Lv. 5"
+                android:textSize="14sp"
+                android:textColor="?attr/colorSecondary"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textViewVS"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="VS"
+            android:textSize="48sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorPrimary"
+            android:fontFamily="sans-serif-black"
+            android:layout_marginHorizontal="20dp"
+            app:layout_constraintTop_toTopOf="@id/vsPlayer1Card"
+            app:layout_constraintBottom_toBottomOf="@id/vsPlayer1Card"
+            app:layout_constraintStart_toEndOf="@id/vsPlayer1Card"
+            app:layout_constraintEnd_toStartOf="@id/vsPlayer2Card"/>
+
+        <!-- Player 2 Card (for VS animation) -->
+        <LinearLayout
+            android:id="@+id/vsPlayer2Card"
+            android:layout_width="140dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="16dp"
+            android:background="@drawable/player_card_vs_background"
+            app:layout_constraintTop_toTopOf="@id/vsPlayer1Card"
+            app:layout_constraintBottom_toBottomOf="@id/vsPlayer1Card"
+            app:layout_constraintStart_toEndOf="@id/textViewVS"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:id="@+id/vsPlayer2Avatar"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_avatar_placeholder"
+                app:tint="?attr/colorOnPrimaryContainer"
+                android:layout_marginBottom="8dp"/>
+            <TextView
+                android:id="@+id/vsPlayer2Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Opponent"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnPrimaryContainer"/>
+
+            <TextView
+                android:id="@+id/vsPlayer2Level"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Lv. 8"
+                android:textSize="14sp"
+                android:textColor="?attr/colorSecondary"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+
+        <!-- Animated Highlight Views (Optional, for moving color highlights) -->
+        <View
+            android:id="@+id/vsHighlight1"
+            android:layout_width="80dp"
+            android:layout_height="8dp"
+            android:background="?attr/colorPrimary"
+            android:alpha="0"
+            app:layout_constraintTop_toBottomOf="@id/vsPlayer1Card"
+            app:layout_constraintStart_toStartOf="@id/vsPlayer1Card"
+            app:layout_constraintEnd_toEndOf="@id/vsPlayer1Card"
+            android:layout_marginTop="8dp"/>
+        <View
+            android:id="@+id/vsHighlight2"
+            android:layout_width="80dp"
+            android:layout_height="8dp"
+            android:background="?attr/colorSecondary"
+            android:alpha="0"
+            app:layout_constraintTop_toBottomOf="@id/vsPlayer2Card"
+            app:layout_constraintStart_toStartOf="@id/vsPlayer2Card"
+            app:layout_constraintEnd_toEndOf="@id/vsPlayer2Card"
+            android:layout_marginTop="8dp"/>
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Top Status Bar -->
     <LinearLayout
@@ -38,6 +163,8 @@
         android:paddingHorizontal="8dp"
         android:background="@drawable/status_bar_background"
         android:elevation="2dp"
+        android:alpha="0"
+        tools:alpha="1"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -132,6 +259,8 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="6dp"
         android:elevation="2dp"
+        android:alpha="0"
+        tools:alpha="1"
         app:layout_constraintTop_toBottomOf="@id/statusBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -168,7 +297,7 @@
                 android:text="Time: --s"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:textColor="@color/timer_default_color"
+                android:textColor="@color/timer_default"
                 tools:text="Time: --s" />
         </LinearLayout>
     </LinearLayout>
@@ -183,15 +312,17 @@
         android:paddingHorizontal="12dp"
         android:paddingTop="10dp"
         android:paddingBottom="4dp"
-    android:layout_marginHorizontal="10dp"
-    android:layout_marginTop="6dp"
-    android:elevation="2dp"
-    android:clickable="true"
-    android:focusable="true"
-    android:foreground="?attr/selectableItemBackground"
-    app:layout_constraintTop_toBottomOf="@id/promptCard"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent">
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="6dp"
+        android:elevation="2dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:alpha="0"
+        tools:alpha="1"
+        app:layout_constraintTop_toBottomOf="@id/promptCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
     <TextView
         android:id="@+id/textViewSentence"
@@ -204,30 +335,32 @@
         android:gravity="center"
         tools:text="Despite the constant barrage of criticism, he remained resilient." />
 
-    <ImageView
-        android:id="@+id/imageViewToggleIndicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_chevron_down"
-        app:tint="@color/text_secondary"
-        android:layout_gravity="center_horizontal"
-        android:paddingTop="4dp"
-        android:contentDescription="Toggle played words" />
+        <ImageView
+            android:id="@+id/imageViewToggleIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:contentDescription="Toggle played words"
+            android:paddingTop="2dp"
+            android:src="@drawable/ic_chevron_down"
+            app:tint="@color/text_secondary" />
 </LinearLayout>
 
     <!-- Words Played Section (Initially Hidden) -->
 <LinearLayout
-android:id="@+id/wordsPlayedCard"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:orientation="horizontal"
-android:background="@drawable/words_card_background"
-android:padding="8dp"
-android:layout_marginHorizontal="10dp"
-android:layout_marginTop="0dp"
+    android:id="@+id/wordsPlayedCard"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/words_card_background"
+    android:padding="2dp"
+    android:layout_marginHorizontal="10dp"
+    android:layout_marginTop="0dp"
     android:elevation="2dp"
     android:visibility="gone"
     tools:visibility="visible"
+    android:alpha="0"
+    tools:alpha="1"
     app:layout_constraintTop_toBottomOf="@id/sentenceCard"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"
@@ -240,14 +373,14 @@ android:layout_height="wrap_content"
 android:layout_weight="1"
 android:orientation="vertical"
 android:background="@drawable/player_words_background"
-android:padding="6dp"
+android:padding="4dp"
 android:layout_marginEnd="3dp">
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:layout_marginBottom="4dp">
+    android:layout_marginBottom="2dp">
     <View
         android:layout_width="8dp"
         android:layout_height="8dp"
@@ -285,14 +418,14 @@ android:layout_height="wrap_content"
 android:layout_weight="1"
 android:orientation="vertical"
 android:background="@drawable/player_words_background"
-android:padding="6dp"
-android:layout_marginStart="3dp">
+android:padding="4dp"
+android:layout_marginStart="2dp">
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:layout_marginBottom="4dp">
+    android:layout_marginBottom="2dp">
     <View
         android:layout_width="8dp"
         android:layout_height="8dp"
@@ -327,19 +460,21 @@ android:layout_marginStart="3dp">
 
     <!-- Emoji Reactions Card -->
 <LinearLayout
-android:id="@+id/emojiReactionCard"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:orientation="horizontal"
-android:background="@drawable/emoji_card_background"
-android:padding="6dp"
-android:layout_marginHorizontal="10dp"
-android:layout_marginTop="6dp"
-android:elevation="2dp"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintTop_toBottomOf="@id/wordsPlayedCard"
-app:layout_constraintBottom_toTopOf="@id/inputCard">
+    android:id="@+id/emojiReactionCard"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/emoji_card_background"
+    android:padding="2dp"
+    android:layout_marginHorizontal="10dp"
+    android:layout_marginTop="2dp"
+    android:elevation="2dp"
+    android:alpha="0"
+    tools:alpha="1"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/wordsPlayedCard"
+    app:layout_constraintBottom_toTopOf="@id/inputCard">
 <!-- Emoji Buttons -->
 <Button
     android:id="@+id/buttonThumbUp"
@@ -393,19 +528,21 @@ app:layout_constraintBottom_toTopOf="@id/inputCard">
 
     <!-- Input Card -->
 <LinearLayout
-android:id="@+id/inputCard"
-android:layout_width="0dp"
-android:layout_height="wrap_content"
-android:orientation="vertical"
-android:background="@drawable/input_card_background"
-android:padding="10dp"
-android:layout_marginHorizontal="10dp"
-android:layout_marginBottom="8dp"
-android:elevation="3dp"
-app:layout_constraintBottom_toBottomOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintEnd_toEndOf="parent"
-app:layout_constraintTop_toBottomOf="@id/emojiReactionCard">
+    android:id="@+id/inputCard"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/input_card_background"
+    android:padding="4dp"
+    android:layout_marginHorizontal="10dp"
+    android:layout_marginBottom="0dp"
+    android:elevation="3dp"
+    android:alpha="0"
+    tools:alpha="1"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/emojiReactionCard">
 <EditText
     android:id="@+id/editTextWordInput"
     android:layout_width="match_parent"
@@ -415,16 +552,16 @@ app:layout_constraintTop_toBottomOf="@id/emojiReactionCard">
     android:textColor="@color/text_primary"
     android:textColorHint="@color/text_hint"
     android:background="@drawable/input_field_background"
-    android:padding="10dp"
+    android:padding="2dp"
     android:inputType="text"
     android:maxLines="1"
     android:imeOptions="actionSend"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="2dp"
     tools:text="Waiting for opponent..."/>
 <com.google.android.material.button.MaterialButton
     android:id="@+id/buttonSubmit"
     android:layout_width="match_parent"
-    android:layout_height="48dp"
+    android:layout_height="38dp"
     android:text="@string/submit_word_button"
     android:textSize="14sp"
     android:textStyle="bold"
@@ -530,6 +667,134 @@ android:layout_marginTop="180dp"
 android:layout_marginStart="20dp"
 android:rotation="-10"
 android:elevation="0dp"/>
+
+    <LinearLayout
+        android:id="@+id/gameOverDisplayLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp"
+        android:background="@drawable/dialog_background"
+        android:elevation="16dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/textViewGameOverTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="GAME OVER"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:layout_marginBottom="16dp"
+            android:fontFamily="sans-serif-condensed-medium"/>
+
+        <!-- Player 1 Final Display -->
+        <LinearLayout
+            android:id="@+id/player1FinalDisplay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:id="@+id/imageViewWinnerP1Crown"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_crown"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:tint="@color/gold_color"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:id="@+id/textViewFinalPlayer1Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Player 1 (You)"
+                android:textSize="20sp"
+                android:textColor="@color/text_primary"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textViewFinalScoreDisplay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="3 - 1"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:layout_marginVertical="8dp"
+            android:fontFamily="sans-serif-black"/>
+
+        <!-- Player 2 Final Display -->
+        <LinearLayout
+            android:id="@+id/player2FinalDisplay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <ImageView
+                android:id="@+id/imageViewWinnerP2Crown"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_crown"
+                android:visibility="gone"
+                tools:visibility="visible"
+                app:tint="@color/gold_color"
+                android:layout_marginEnd="8dp"/>
+            <TextView
+                android:id="@+id/textViewFinalPlayer2Name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Opponent Player"
+                android:textSize="20sp"
+                android:textColor="@color/text_secondary"/>
+        </LinearLayout>
+        <TextView
+            android:id="@+id/textViewGameEndReason"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="(Double Timeout)"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            tools:visibility="visible"/>
+
+    </LinearLayout>
+
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonReturnToMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Return to Menu"
+        android:textSize="14sp"
+        android:textColor="@color/text_on_primary"
+        android:backgroundTint="@color/secondary"
+        app:icon="@drawable/ic_home"
+        app:iconTint="@color/text_on_primary"
+        app:cornerRadius="20dp"
+        android:elevation="4dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:layout_constraintTop_toBottomOf="@id/inputCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="0.3"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"/>
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>

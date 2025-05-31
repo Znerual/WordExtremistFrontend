@@ -33,12 +33,17 @@ class MatchmakingActivity : AppCompatActivity() {
 
     private var ownDatabaseUserId: Int? = null
     private var actualUsername: String? = null
+    private var ownLevel: Int? = null
 
     private var gameLanguageForMatchmaking: String = "en" // Default
 
     companion object {
         const val EXTRA_SELECTED_LANGUAGE = "extra_selected_language"
         const val EXTRA_OWN_USER_ID = "extra_own_user_id"
+        const val EXTRA_OWN_USER_NAME = "extra_own_user_name"
+        const val EXTRA_OWN_LEVEL = "extra_own_level"
+        const val EXTRA_OPPONENT_USER_NAME = "extra_opponent_user_name"
+        const val EXTRA_OPPONENT_LEVEL = "extra_opponent_level"
         const val EXTRA_GAME_ID = "extra_game_id"
         const val EXTRA_GAME_LANGUAGE_FOR_MAIN = "extra_game_language_for_main"
     }
@@ -84,6 +89,7 @@ class MatchmakingActivity : AppCompatActivity() {
                     val user = profileResponse.body()!!
                     ownDatabaseUserId = user.id
                     actualUsername = user.username ?: "Player${user.id}"
+                    ownLevel = user.level ?: 0
                     Log.i("MatchmakingActivity", "User profile verified. DB ID: $ownDatabaseUserId, Username: $actualUsername, Lvl: ${user.level}")
                     startMatchmakingPolling() // Proceed to matchmaking
                 } else {
@@ -140,7 +146,7 @@ class MatchmakingActivity : AppCompatActivity() {
                         if (matchmakingStatus != null) {
                             when (matchmakingStatus.status) {
                                 "matched" -> {
-                                    if (matchmakingStatus.game_id != null && matchmakingStatus.your_player_id_in_game != null) {
+                                    if (matchmakingStatus.game_id != null && matchmakingStatus.your_player_id_in_game != null && matchmakingStatus.opponent_name != null && matchmakingStatus.opponent_level != null) {
                                         Log.i("MatchmakingActivity", "Match found! Game ID: ${matchmakingStatus.game_id}, Opponent: ${matchmakingStatus.opponent_name}, Your ID in Game: ${matchmakingStatus.your_player_id_in_game}")
 
                                         // ownDatabaseUserId should already be our correct ID from /users/me.
@@ -155,7 +161,7 @@ class MatchmakingActivity : AppCompatActivity() {
                                         Toast.makeText(this@MatchmakingActivity, "Match found with ${matchmakingStatus.opponent_name ?: "Player"}!", Toast.LENGTH_LONG).show()
                                         matchFound = true
                                         binding.buttonCancelMatchmaking.isEnabled = false
-                                        proceedToGame(matchmakingStatus.game_id, ownDatabaseUserId!!, matchmakingStatus.language ?: gameLanguageForMatchmaking)
+                                        proceedToGame(matchmakingStatus.game_id, ownDatabaseUserId!!, ownLevel!!, matchmakingStatus.language ?: gameLanguageForMatchmaking, matchmakingStatus.opponent_name, matchmakingStatus.opponent_level )
                                     } else {
                                         Log.e("MatchmakingActivity", "Error: Matched status received but game_id or your_player_id_in_game is null!")
                                         binding.textViewStatus.text = "Error: Invalid match data."
@@ -227,7 +233,7 @@ class MatchmakingActivity : AppCompatActivity() {
     }
 
 
-    private fun proceedToGame(gameId: String, gameOwnUserId: Int, actualGameLanguage: String) {
+    private fun proceedToGame(gameId: String, gameOwnUserId: Int, ownLevel: Int, actualGameLanguage: String, opponentName: String, opponentLevel: Int) {
         matchmakingJob?.cancel() // Ensure polling is stopped
         matchmakingJob = null
         binding.progressBarMatchmaking.visibility = View.GONE
@@ -243,6 +249,10 @@ class MatchmakingActivity : AppCompatActivity() {
         Log.i("MatchmakingActivity", "Proceeding to game: $gameId for user DB ID: $gameOwnUserId with language $actualGameLanguage")
         val intent = Intent(this, MainActivity::class.java).apply {
             putExtra(EXTRA_OWN_USER_ID, gameOwnUserId) // User's DB ID for game identification
+            putExtra(EXTRA_OWN_USER_NAME, actualUsername)
+            putExtra(EXTRA_OWN_LEVEL, ownLevel)
+            putExtra(EXTRA_OPPONENT_USER_NAME, opponentName)
+            putExtra(EXTRA_OPPONENT_LEVEL, opponentLevel)
             putExtra(EXTRA_GAME_ID, gameId)
             putExtra(EXTRA_GAME_LANGUAGE_FOR_MAIN, actualGameLanguage)
             // MainActivity's GameWebSocketClient will use TokenManager to get the token for its URL

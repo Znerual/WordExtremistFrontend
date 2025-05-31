@@ -1,0 +1,7 @@
+<!-- res/drawable/player_card_vs_background.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/colorSurfaceContainerLowest" /> <!-- Or a slightly different variant -->
+    <corners android:radius="12dp" />
+    <stroke android:width="2dp" android:color="?attr/colorPrimary" />
+</shape>

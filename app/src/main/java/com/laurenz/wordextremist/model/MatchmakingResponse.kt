@@ -15,6 +15,9 @@ data class MatchmakingResponse(
     @SerializedName("opponent_name")
     val opponent_name: String?, // Can be null if status is "waiting" or "error"
 
+    @SerializedName("opponent_level")
+    val opponent_level: Int?, // Can be null if status is "waiting" or "error"
+
     @SerializedName("player1_id")
     val player1_id: Int?, // Database ID of player 1 in the game, null if not matched
 

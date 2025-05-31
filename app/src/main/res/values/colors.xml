@@ -50,6 +50,7 @@
     <color name="word_highlight">#FFF3E0</color>    <!-- Soft orange tint for highlighted words -->
     <color name="correct_answer">#66BB6A</color>    <!-- Fresh green for correct answers -->
     <color name="incorrect_answer">#EF5350</color>  <!-- Warm red for mistakes -->
+    <color name="timer_default">#248A81</color>     <!-- Dark blue for timer defaults -->
     <color name="timer_warning">#FF9800</color>     <!-- Orange for timer warnings -->
     <color name="timer_critical">#F44336</color>    <!-- Red for critical timer -->
 
@@ -61,7 +62,16 @@
     <color name="button_primary">#FF6B35</color>    <!-- Primary button color -->
     <color name="button_secondary">#4ECDC4</color>  <!-- Secondary button color -->
     <color name="divider">#E0E0E0</color>          <!-- Light gray for dividers -->
-    <color name="shadow">#1A000000</color>         <!-- Subtle shadow (10% black) -->
+    <color name="shadow">#1A000000</color>
+
+
+    <color name="gold_color">#FFD700</color>
+    <!-- Ensure your theme (e.g., themes.xml) defines colorSurfaceContainerHigh and colorOutlineVariant -->
+    <!-- Or define them directly if not using Material 3 theming extensively -->
+    <color name="surface_container_high_example">#F0F0F0</color> <!-- Light Theme -->
+    <color name="outline_variant_example">#C0C0C0</color>
+
+    <!-- Subtle shadow (10% black) -->
 
     <!-- Sand Animation Colors -->
     <color name="sand_timer_top">#4DFFD23F</color>   <!-- Accent color (Warm yellow) with ~30% alpha -->
