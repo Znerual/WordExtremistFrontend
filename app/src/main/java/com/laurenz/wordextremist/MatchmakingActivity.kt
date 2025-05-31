@@ -79,7 +79,7 @@ class MatchmakingActivity : AppCompatActivity() {
 
     private fun fetchUserProfileAndStartPolling() {
         binding.textViewStatus.text = "Verifying user..."
-        binding.progressBarMatchmaking.visibility = View.VISIBLE
+        //binding.progressBarMatchmaking.visibility = View.VISIBLE
         binding.buttonCancelMatchmaking.isEnabled = false
 
         lifecycleScope.launch {
@@ -96,7 +96,7 @@ class MatchmakingActivity : AppCompatActivity() {
                     val errorBody = profileResponse.errorBody()?.string() ?: "Failed to verify profile"
                     Log.e("MatchmakingActivity", "Error verifying profile: ${profileResponse.code()} - $errorBody")
                     binding.textViewStatus.text = "Error: Could not verify user."
-                    binding.progressBarMatchmaking.visibility = View.GONE
+                    //binding.progressBarMatchmaking.visibility = View.GONE
                     Toast.makeText(this@MatchmakingActivity, "User verification failed.", Toast.LENGTH_LONG).show()
                     // Option: go back to Launcher if profile fetch fails critically
                     navigateToLauncher(clearTask = true)
@@ -104,7 +104,7 @@ class MatchmakingActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("MatchmakingActivity", "Exception verifying profile: ${e.message}", e)
                 binding.textViewStatus.text = "Error: Connection problem."
-                binding.progressBarMatchmaking.visibility = View.GONE
+                //binding.progressBarMatchmaking.visibility = View.GONE
                 Toast.makeText(this@MatchmakingActivity, "Profile verification error.", Toast.LENGTH_LONG).show()
                 navigateToLauncher(clearTask = true)
             }
@@ -115,7 +115,7 @@ class MatchmakingActivity : AppCompatActivity() {
         if (ownDatabaseUserId == null) { // Should be set by fetchUserProfileAndStartPolling
             Log.e("MatchmakingActivity", "Cannot start matchmaking, user DB ID not available.")
             binding.textViewStatus.text = "Error: User ID missing."
-            binding.progressBarMatchmaking.visibility = View.GONE
+            //binding.progressBarMatchmaking.visibility = View.GONE
             return
         }
 
@@ -126,7 +126,7 @@ class MatchmakingActivity : AppCompatActivity() {
 
         Log.i("MatchmakingActivity", "Starting matchmaking polling for user DB ID: $ownDatabaseUserId (Username: $actualUsername)...")
         binding.textViewStatus.text = "Connecting to matchmaking..."
-        binding.progressBarMatchmaking.visibility = View.VISIBLE
+        //binding.progressBarMatchmaking.visibility = View.VISIBLE
         binding.buttonCancelMatchmaking.isEnabled = true
 
         matchmakingJob = lifecycleScope.launch {
@@ -157,10 +157,15 @@ class MatchmakingActivity : AppCompatActivity() {
                                         }
 
                                         binding.textViewStatus.text = "Match Found!"
-                                        binding.progressBarMatchmaking.visibility = View.GONE
+                                        //binding.progressBarMatchmaking.visibility = View.GONE
                                         Toast.makeText(this@MatchmakingActivity, "Match found with ${matchmakingStatus.opponent_name ?: "Player"}!", Toast.LENGTH_LONG).show()
                                         matchFound = true
+                                        // Play Pulse Animation on Morphing Symbol
+                                        binding.morphingSymbolView.playMatchFoundPulse()
+                                        binding.textViewStatus.text = "Match Found!"
                                         binding.buttonCancelMatchmaking.isEnabled = false
+                                        delay(800)
+                                        if (!isActive) break
                                         proceedToGame(matchmakingStatus.game_id, ownDatabaseUserId!!, ownLevel!!, matchmakingStatus.language ?: gameLanguageForMatchmaking, matchmakingStatus.opponent_name, matchmakingStatus.opponent_level )
                                     } else {
                                         Log.e("MatchmakingActivity", "Error: Matched status received but game_id or your_player_id_in_game is null!")
@@ -171,10 +176,16 @@ class MatchmakingActivity : AppCompatActivity() {
                                 "waiting" -> {
                                     binding.textViewStatus.text = "Searching for opponent as ${actualUsername ?: "Player"}..."
                                     Log.d("MatchmakingActivity", "Status: waiting...")
+                                    if (binding.morphingSymbolView.visibility != View.VISIBLE) {
+                                        binding.morphingSymbolView.visibility = View.VISIBLE
+                                    }
                                 }
                                 else -> {
                                     Log.w("MatchmakingActivity", "Received unexpected status: ${matchmakingStatus.status}")
                                     binding.textViewStatus.text = "Searching... (${matchmakingStatus.status})"
+                                    if (!binding.morphingSymbolView.isShown) { // Or a flag in MorphingSymbolView
+                                        binding.morphingSymbolView.startMorphing()
+                                    }
                                 }
                             }
                         } else {
@@ -226,7 +237,7 @@ class MatchmakingActivity : AppCompatActivity() {
             if (!matchFound && isActive) { // Loop finished but no match and not cancelled
                 Log.w("MatchmakingActivity", "Matchmaking loop finished without finding a match.")
                 binding.textViewStatus.text = "Could not find a match. Try again?"
-                binding.progressBarMatchmaking.visibility = View.GONE
+                //binding.progressBarMatchmaking.visibility = View.GONE
                 binding.buttonCancelMatchmaking.isEnabled = false // Or allow retry
             }
         }
@@ -236,7 +247,7 @@ class MatchmakingActivity : AppCompatActivity() {
     private fun proceedToGame(gameId: String, gameOwnUserId: Int, ownLevel: Int, actualGameLanguage: String, opponentName: String, opponentLevel: Int) {
         matchmakingJob?.cancel() // Ensure polling is stopped
         matchmakingJob = null
-        binding.progressBarMatchmaking.visibility = View.GONE
+        //binding.progressBarMatchmaking.visibility = View.GONE
 
         val jwtToken = TokenManager.getToken(this) // For WebSocket connection
         if (jwtToken == null) {
@@ -274,7 +285,7 @@ class MatchmakingActivity : AppCompatActivity() {
         Log.i("MatchmakingActivity", "Attempting to cancel matchmaking polling...")
         binding.buttonCancelMatchmaking.isEnabled = false // Disable during cancellation
         binding.textViewStatus.text = "Cancelling matchmaking..."
-        binding.progressBarMatchmaking.visibility = View.VISIBLE
+        //binding.progressBarMatchmaking.visibility = View.VISIBLE
 
         matchmakingJob?.cancel() // Cancel the coroutine
         matchmakingJob = null
@@ -297,7 +308,7 @@ class MatchmakingActivity : AppCompatActivity() {
                 Log.e("MatchmakingActivity", "Error during backend cancellation: ${e.message}", e)
                 Toast.makeText(this@MatchmakingActivity, "Error during cancellation.", Toast.LENGTH_SHORT).show()
             } finally {
-                binding.progressBarMatchmaking.visibility = View.GONE
+                //binding.progressBarMatchmaking.visibility = View.GONE
                 // Navigate back to LauncherActivity after cancellation attempt
                 navigateToLauncher()
             }
@@ -315,6 +326,7 @@ class MatchmakingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        binding.morphingSymbolView.stopMorphing() // Ensure it stops on destroy
         if (matchmakingJob?.isActive == true) {
             Log.d("MatchmakingActivity", "onDestroy called, cancelling active matchmaking job.")
             matchmakingJob?.cancel()
