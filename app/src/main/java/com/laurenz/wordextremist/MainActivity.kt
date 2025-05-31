@@ -97,6 +97,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         gameWebSocketClient = GameWebSocketClient(currentGameId!!, this, this) // Pass gameId and listener (this)
         gameWebSocketClient?.connect() // Attempt to connect
 
+
         // Initialize Game State (basic placeholder)
         // The actual initial state should ideally come from the server via WebSocket upon connection
         initializePlaceholderGame() // Initialize with placeholders
@@ -105,18 +106,25 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // Setup UI Listeners (mostly unchanged)
         setupEmojiButtonListeners()
         setupInputListeners()
+        setupSentenceCardToggleListener()
 
         // Initialize other UI elements (can be updated later by WS messages)
         updatePlaceholdersUI() // Setup default text
 
-        // Timer might be started by a "game_start" message from the server,
-        // but let's start it for player 1 initially for testing.
-        // If your backend sends whose turn it is upon connection, adjust this.
-        if (gameState.currentPlayerTurn == PlayerTurn.PLAYER_1) {
-            // startNewTurnTimer() // Let's wait for onOpen or a start message
-        }
+
     }
 
+    private fun setupSentenceCardToggleListener() {
+        binding.sentenceCard.setOnClickListener {
+            if (binding.wordsPlayedCard.visibility == View.VISIBLE) {
+                binding.wordsPlayedCard.visibility = View.GONE
+                binding.imageViewToggleIndicator.setImageResource(R.drawable.ic_chevron_down)
+            } else {
+                binding.wordsPlayedCard.visibility = View.VISIBLE
+                binding.imageViewToggleIndicator.setImageResource(R.drawable.ic_chevron_up)
+            }
+        }
+    }
 
     // Use this for initial setup before server state arrives
     private fun initializePlaceholderGame() {
@@ -157,6 +165,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.editTextWordInput.isEnabled = false
         binding.buttonSubmit.isEnabled = false
         setEmojiButtonsEnabled(false)
+        binding.tricklingSandView.resetAndHide()
     }
 
 
@@ -725,8 +734,11 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     // --- Timer Logic (Mostly Unchanged) ---
     private fun startNewTurnTimer() {
         countDownTimer?.cancel()
+        binding.tricklingSandView.resetAndHide() // Ensure clean state
         timeLeftInMillis = TURN_DURATION_MS
         binding.textViewTimer.setTextColor(ContextCompat.getColor(this, R.color.timer_default_color)) // Use this@MainActivity context
+
+        binding.tricklingSandView.startTimerEffect(TURN_DURATION_MS / 1000f) // Pass duration in seconds
 
         countDownTimer = object : CountDownTimer(timeLeftInMillis, COUNTDOWN_INTERVAL_MS) {
             override fun onTick(millisUntilFinished: Long) {
@@ -743,12 +755,19 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 } else {
                     binding.textViewTimer.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.timer_default_color))
                 }
+
+                val elapsedTime = TURN_DURATION_MS - millisUntilFinished
+                val progress = elapsedTime.toFloat() / TURN_DURATION_MS.toFloat()
+                binding.tricklingSandView.setTargetFillLevelCap(progress)
+
             }
 
             override fun onFinish() {
                 if (!this@MainActivity.isActive) return // Check activity state
 
                 binding.textViewTimer.text = "Time's up!"
+
+                binding.tricklingSandView.stopTimerEffectAndFill()
                 // Time's up is effectively a mistake, the *server* should handle this.
                 // Client *could* send a "timeout" message, or server detects lack of input.
                 // For simplicity, let client assume it's a mistake locally for immediate feedback,
@@ -777,6 +796,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         countDownTimer = null
         binding.textViewTimer.text = "Time: --s" // Reset timer text
         binding.textViewTimer.setTextColor(ContextCompat.getColor(this, R.color.timer_default_color))
+
+        binding.tricklingSandView.cancelTimerEffect()
     }
 
     // --- Keyboard Utils ---
