@@ -1,0 +1,5 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval"> <!-- Or rectangle with rounded top corners -->
+    <solid android:color="#80000000"/> <!-- Semi-transparent dark, will be tinted -->
+    <!-- If rectangle: <corners android:topLeftRadius="12dp" android:topRightRadius="12dp"/> -->
+</shape>

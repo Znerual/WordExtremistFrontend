@@ -95,6 +95,34 @@
     <!-- Fallback for ripple color if not otherwise defined by components -->
     <color name="ripple_light_gray">#20718096</color>
 
+    <!-- Word Vault Specific Colors -->
+    <color name="journal_background">#FAF3E0</color> <!-- Creamy paper-like background -->
+    <color name="journal_text_primary">#5D4037</color> <!-- Brownish text, like ink -->
+    <color name="journal_text_secondary">#8D6E63</color> <!-- Lighter brown for less emphasis -->
+
+    <color name="pedestal_gold">#FFD700</color>
+    <color name="pedestal_silver">#C0C0C0</color>
+    <color name="pedestal_bronze">#CD7F32</color>
+
+    <color name="gem_word_background">#40FFFFFF</color> <!-- Semi-transparent white for gem text background -->
+    <color name="gem_word_text">#FF3700B3</color>      <!-- Dark purple for gem text -->
+
+    <color name="word_wheel_path">#A08D6E63</color> <!-- Faded journal text color for the wheel path -->
+    <color name="word_wheel_text_default">#795548</color> <!-- Default text color for words on wheel -->
+    <color name="word_wheel_text_highlight">@color/primary</color> <!-- Highlighted word on wheel -->
+
+    <color name="word_creativity_0">#A0AEC0</color> <!-- Low creativity / Default (text_hint like) -->
+    <color name="word_creativity_1">#718096</color> <!-- Slightly better (text_secondary like) -->
+    <color name="word_creativity_2">@color/journal_text_primary</color> <!-- Good (like standard journal text) -->
+    <color name="word_creativity_3">@color/secondary</color> <!-- Creative (Teal) -->
+    <color name="word_creativity_4">@color/primary</color>   <!-- Very Creative (Orange) -->
+    <color name="word_creativity_5">@color/accent</color>    <!-- Genius! (Gold/Yellow) -->
+
+    <color name="word_wheel_text_highlight_creative_0">#81D4FA</color> <!-- Lighter blue for low creativity highlight -->
+    <color name="word_wheel_text_highlight_creative_5">#FFF59D</color> <!-- Lighter yellow for high creativity highlight -->
+
+    <color name="details_card_background">#FFFFFF</color> <!-- White for the details pop-up -->
+
 </resources>
 
     

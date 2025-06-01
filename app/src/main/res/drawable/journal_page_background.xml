@@ -1,0 +1,7 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/journal_background" />
+    <!-- Optional: add a noise pattern or subtle lines for paper texture -->
+    <!-- <item>
+        <bitmap android:src="@drawable/paper_texture_noise" android:tileMode="repeat" />
+    </item> -->
+</layer-list>
