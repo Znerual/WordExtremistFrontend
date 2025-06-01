@@ -12,4 +12,31 @@
     <string name="submit_word_button">Submit Word</string>
     <string name="game_services_project_id" translatable="false">wordextremist</string>
     <string name="return_to_menu">Return to Menu</string>
+    <string name="worldicon">WorldIcon</string>
+    <string name="treasurechesticon">treasureChestIcon</string>
+    <string name="word_vault">Word Vault</string>
+    <string name="best_words">Best Words</string>
+    <string name="leaderboardicon">leaderboardIcon</string>
+    <string name="leaderboard">Leaderboard</string>
+    <string name="top_players">Top Players</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="backgroundelement">backgroundElement</string>
+    <string name="start_battle">🚀 START BATTLE</string>
+    <string name="cancel_search">Cancel Search</string>
+    <string name="searching_for_a_worthy_opponent">Searching for a worthy opponent...</string>
+    <string name="avatarplaceholder">avatarPlaceholder</string>
+    <string name="vs">VS</string>
+    <string name="round_score">ROUND SCORE</string>
+    <string name="connection_lost">CONNECTION LOST</string>
+    <string name="time_s">Time: --s</string>
+    <string name="despite_the_constant_barrage_of_criticism_he_remained_resilient">Despite the constant barrage of criticism, he remained resilient.</string>
+    <string name="toggle_played_words">Toggle played words</string>
+    <string name="user_e34fc89f_s_words">User_e34fc89f\'s Words:</string>
+    <string name="user_d4f63d05_s_words">User_d4f63d05\'s Words:</string>
+    <string name="thumbs_up_emoji">👍</string>
+    <string name="surprise_emoji">😮</string>
+    <string name="laughing_emoji">😂</string>
+    <string name="heart_emoji">❤️</string>
+    <string name="game_over">GAME OVER</string>
+    <string name="winnercrown">winnerCrown</string>
 </resources>
