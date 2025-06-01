@@ -602,7 +602,18 @@ class LauncherActivity : AppCompatActivity() {
         }
 
         binding.buttonTreasureChest.setOnClickListener {
-            Toast.makeText(this, "Word Vault: Not yet implemented.", Toast.LENGTH_SHORT).show()
+            Log.d("LauncherActivity", "Treasure Chest button clicked.") // Log click
+            // --- MODIFIED SECTION ---
+            if (TokenManager.getToken(this) != null && currentUserDbId != null) {
+                val intent = Intent(this, WordVaultActivity::class.java)
+                // You can pass data to WordVaultActivity if needed, e.g., user ID
+                // intent.putExtra("USER_ID", currentUserDbId)
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "Please sign in to view your Word Vault.", Toast.LENGTH_LONG).show()
+                // Optionally, trigger sign-in
+                checkAuthenticationAndFetchProfile()
+            }
         }
 
         binding.buttonSignOut.setOnClickListener {
