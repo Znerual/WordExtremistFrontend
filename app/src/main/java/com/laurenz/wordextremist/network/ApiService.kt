@@ -2,19 +2,22 @@ package com.laurenz.wordextremist.network
 
 import com.laurenz.wordextremist.model.BackendToken
 import com.laurenz.wordextremist.model.DeviceLoginRequestData
-import com.laurenz.wordextremist.model.CancelMatchmakingRequestData
-import com.laurenz.wordextremist.model.GetOrCreateUserRequestData
+
 import com.laurenz.wordextremist.model.MatchmakingResponse
 import com.laurenz.wordextremist.model.UserPublic // Your Pydantic UserPublic model mirrored in Kotlin
 import com.laurenz.wordextremist.model.SentencePromptPublic // Your Pydantic model mirrored
 import com.laurenz.wordextremist.model.WordVaultEntry
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
-// Data class for the Google token request body
+import retrofit2.http.Multipart
+import retrofit2.http.PATCH
+import retrofit2.http.Part
+
 
 
 interface ApiService {
@@ -44,6 +47,13 @@ interface ApiService {
     */
     @GET("api/v1/auth/users/me")
     suspend fun getMyProfile(): Response<UserPublic>
+
+    @Multipart
+    @PATCH("api/v1/auth/users/me") // A new, dedicated endpoint for updates
+    suspend fun updateUserProfile(
+        @Part username: MultipartBody.Part?,
+        @Part profile_picture: MultipartBody.Part?
+    ): Response<UserPublic> // Returns the updated user object on success
 
     @POST("api/v1/auth/device-login") // New endpoint
     suspend fun deviceLogin(

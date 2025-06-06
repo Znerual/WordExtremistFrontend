@@ -62,7 +62,10 @@
     </style>
 
     <style name="Theme.WordExtremist" parent="Base.Theme.WordExtremist" />
-
+    <style name="ToolbarTitleTextAppearance" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="android:textStyle">bold</item>
+    </style>
     <!-- Example Shape Appearances (Optional, but good for M3 consistency if needed) -->
     <!--
     <style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">

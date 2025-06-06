@@ -35,6 +35,8 @@ class MatchmakingActivity : AppCompatActivity() {
     private var ownDatabaseUserId: Int? = null
     private var actualUsername: String? = null
     private var ownLevel: Int? = null
+    private var ownProfilePicUrl: String? = null
+    private var opponentProfilePicUrl: String? = null
 
     private var gameLanguageForMatchmaking: String = "en" // Default
 
@@ -47,6 +49,8 @@ class MatchmakingActivity : AppCompatActivity() {
         const val EXTRA_OPPONENT_LEVEL = "extra_opponent_level"
         const val EXTRA_GAME_ID = "extra_game_id"
         const val EXTRA_GAME_LANGUAGE_FOR_MAIN = "extra_game_language_for_main"
+        const val EXTRA_OWN_PROFILE_PIC_URL = "extra_own_profile_pic_url"
+        const val EXTRA_OPPONENT_PROFILE_PIC_URL = "extra_opponent_profile_pic_url"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,6 +107,7 @@ class MatchmakingActivity : AppCompatActivity() {
                     ownDatabaseUserId = user.id
                     actualUsername = user.username ?: "Player${user.id}"
                     ownLevel = user.level
+                    ownProfilePicUrl = user.profilePicUrl
                     Log.i("MatchmakingActivity", "User profile verified. DB ID: $ownDatabaseUserId, Username: $actualUsername, Lvl: ${user.level}")
 
                     // Profile is fetched, now we can start the polling for a match.
@@ -170,6 +175,8 @@ class MatchmakingActivity : AppCompatActivity() {
                                             Log.w("MatchmakingActivity", "Mismatch between local ownDatabaseUserId ($ownDatabaseUserId) and server's your_player_id_in_game (${matchmakingStatus.your_player_id_in_game}). Using server's.")
                                             ownDatabaseUserId = matchmakingStatus.your_player_id_in_game
                                         }
+
+                                        opponentProfilePicUrl = matchmakingStatus.opponent_profile_pic_url
 
                                         binding.textViewStatus.text = "Match Found!"
                                         //binding.progressBarMatchmaking.visibility = View.GONE
@@ -243,7 +250,7 @@ class MatchmakingActivity : AppCompatActivity() {
                 }
 
                 if (!matchFound && isActive) {
-                    val pollInterval = 500L
+                    val pollInterval = 1000L
                     Log.d("MatchmakingActivity", "Waiting ${pollInterval}ms before next poll.")
                     delay(pollInterval)
                 }
@@ -281,6 +288,8 @@ class MatchmakingActivity : AppCompatActivity() {
             putExtra(EXTRA_OPPONENT_LEVEL, opponentLevel)
             putExtra(EXTRA_GAME_ID, gameId)
             putExtra(EXTRA_GAME_LANGUAGE_FOR_MAIN, actualGameLanguage)
+            putExtra(EXTRA_OWN_PROFILE_PIC_URL, ownProfilePicUrl)
+            putExtra(EXTRA_OPPONENT_PROFILE_PIC_URL, opponentProfilePicUrl)
             // MainActivity's GameWebSocketClient will use TokenManager to get the token for its URL
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

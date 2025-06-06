@@ -46,13 +46,15 @@
             app:layout_constraintHorizontal_chainStyle="packed"
             app:layout_constraintHorizontal_bias="0.5">
 
-            <ImageView
+            <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/vsPlayer1Avatar"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:contentDescription="@string/avatarplaceholder"
-                android:src="@drawable/ic_avatar_placeholder"
+                android:src="@drawable/avatar_dummy"
                 app:tint="?attr/colorOnPrimaryContainer"
+                app:civ_border_color="#FFFFFF"
+                app:civ_border_width="2dp"
                 android:layout_marginBottom="8dp"/>
 
             <TextView
@@ -103,13 +105,15 @@
             app:layout_constraintStart_toEndOf="@id/textViewVS"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <ImageView
+            <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/vsPlayer2Avatar"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:contentDescription="@string/avatarplaceholder"
-                android:src="@drawable/ic_avatar_placeholder"
+                android:src="@drawable/avatar_dummy"
                 app:tint="?attr/colorOnPrimaryContainer"
+                app:civ_border_color="#FFFFFF"
+                app:civ_border_width="2dp"
                 android:layout_marginBottom="8dp"/>
             <TextView
                 android:id="@+id/vsPlayer2Name"

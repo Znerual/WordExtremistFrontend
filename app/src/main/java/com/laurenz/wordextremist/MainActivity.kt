@@ -33,6 +33,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.os.postDelayed
+import com.bumptech.glide.Glide
 import com.laurenz.wordextremist.databinding.ActivityMainBinding
 import com.laurenz.wordextremist.network.GameWebSocketClient
 import com.laurenz.wordextremist.model.RoundEndReason
@@ -64,6 +65,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var opponentUsername: String? = null
     private var opponentLevelForDisplay: Int = 0
     private var currentGameLanguage: String = "en"
+    private var ownProfilePicUrl: String? = null
+    private var opponentProfilePicUrl: String? = null
     // Removed currentBackendToken
     // Removed DEBUG constants
 
@@ -85,6 +88,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         opponentLevelForDisplay = intent.getIntExtra(MatchmakingActivity.EXTRA_OPPONENT_LEVEL, 0)
         currentGameId = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_ID)
         currentGameLanguage = intent.getStringExtra(MatchmakingActivity.EXTRA_GAME_LANGUAGE_FOR_MAIN) ?: "en"
+        ownProfilePicUrl = intent.getStringExtra(MatchmakingActivity.EXTRA_OWN_PROFILE_PIC_URL)
+        opponentProfilePicUrl = intent.getStringExtra(MatchmakingActivity.EXTRA_OPPONENT_PROFILE_PIC_URL)
 
         // Removed backend token retrieval
 
@@ -221,6 +226,18 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.vsPlayer1Level.text = "Lv. $ownLevelForDisplay" // Set level text
         binding.vsPlayer2Name.text = opponentUsername // gameState.player2.name // Should be "Opponent"
         binding.vsPlayer2Level.text = "Lv. $opponentLevelForDisplay" // Set level
+
+        Glide.with(this)
+            .load(ownProfilePicUrl)
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.vsPlayer1Avatar)
+
+        Glide.with(this)
+            .load(opponentProfilePicUrl)
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.vsPlayer2Avatar)
 
         // Make level TextViews visible if they were initially gone
         binding.vsPlayer1Level.visibility = View.VISIBLE

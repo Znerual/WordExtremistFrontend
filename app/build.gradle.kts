@@ -62,6 +62,7 @@ dependencies {
 
     // UI
     implementation(libs.circleimageview)
+    implementation(libs.glide)
     // Google Sign-In
 
 

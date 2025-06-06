@@ -2,6 +2,7 @@
 package com.laurenz.wordextremist
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -26,12 +27,15 @@ import com.laurenz.wordextremist.util.TokenManager
 import android.view.Choreographer
 import android.view.ViewTreeObserver
 import android.widget.ImageView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
 import java.util.Random
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.core.content.edit
+import com.bumptech.glide.Glide
 import com.laurenz.wordextremist.model.UserPublic
 import com.laurenz.wordextremist.network.ApiClient
 
@@ -47,7 +51,10 @@ class LauncherActivity : AppCompatActivity() {
     private val PREF_USER_LEVEL = "userLevel"
     private val PREF_USER_EXPERIENCE = "userExperience"
     private val PREF_USER_WORDS_COUNT = "userWordsCount"
+    private val PREF_USER_PROFILE_PIC_URL = "userProfilePicUrl"
     private val PREF_USER_DB_ID = "userDbId" // To store user's database ID
+
+    private lateinit var editProfileResultLauncher: ActivityResultLauncher<Intent>
 
     private var localClientIdentifier: String? = null // For device login
     private var currentUserDbId: Int? = null // Store current user's DB ID
@@ -98,6 +105,14 @@ class LauncherActivity : AppCompatActivity() {
         loadLanguagePreference() // Load saved language and update spinner
         setupClickListeners()
         loadCachedProfileInfo() // Load cached info first
+
+        editProfileResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                Log.d("LauncherActivity", "Returned from EditProfileActivity with success. Refreshing profile.")
+                // The profile was updated, so re-fetch the latest data to update the UI
+                checkAuthAndLoadProfile()
+            }
+        }
 
         // Setup for animations: Get parent dimensions once layout is complete
         binding.root.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -268,7 +283,7 @@ class LauncherActivity : AppCompatActivity() {
         // val experience = prefs.getInt(PREF_USER_EXPERIENCE, -1) // Not directly used in display string if wordsCount present
         val wordsCount = prefs.getInt(PREF_USER_WORDS_COUNT, -1)
         currentUserDbId = prefs.getInt(PREF_USER_DB_ID, -1).takeIf { it != -1 }
-
+        val profilePicUrl = prefs.getString(PREF_USER_PROFILE_PIC_URL, null)
 
         if (username != null && level != -1) {
             binding.textViewPlayerName.text = username
@@ -278,6 +293,13 @@ class LauncherActivity : AppCompatActivity() {
                 "Level $level" // Fallback if no words or XP to show initially
             }
             binding.textViewPlayerLevel.text = levelText
+
+            Glide.with(this)
+                .load(profilePicUrl) // Glide handles null URLs gracefully
+                .placeholder(R.drawable.avatar_dummy) // Show while loading
+                .error(R.drawable.avatar_dummy)       // Show if URL is bad or load fails
+                .into(binding.imageViewProfilePicture)
+
             binding.profileSection.visibility = View.VISIBLE
             binding.buttonStartMatch.isEnabled = true // Enable if cached info exists
         } else {
@@ -294,6 +316,13 @@ class LauncherActivity : AppCompatActivity() {
             "Level ${user.level} • ${user.experience} XP"
         }
         binding.textViewPlayerLevel.text = levelText
+
+        Glide.with(this)
+            .load(user.profilePicUrl) // Load the URL from the user object
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.imageViewProfilePicture)
+
         binding.profileSection.visibility = View.VISIBLE
         Log.d("LauncherActivity", "Profile UI Updated: ${user.username}, Level ${user.level}, Words ${user.wordsCount}")
     }
@@ -301,6 +330,8 @@ class LauncherActivity : AppCompatActivity() {
     private fun showDefaultProfileState(message: String? = "Sign in to play!") {
         binding.textViewPlayerName.text = "Guest Player"
         binding.textViewPlayerLevel.text = message
+        binding.imageViewProfilePicture.setImageResource(R.drawable.avatar_dummy)
+
         binding.profileSection.visibility = View.VISIBLE // Or GONE based on design
         // currentUserDbId = null // Clear if we are in a default state
     }
@@ -313,6 +344,7 @@ class LauncherActivity : AppCompatActivity() {
             putInt(PREF_USER_EXPERIENCE, user.experience)
             putInt(PREF_USER_WORDS_COUNT, user.wordsCount)
             putInt(PREF_USER_DB_ID, user.id)
+            putString(PREF_USER_PROFILE_PIC_URL, user.profilePicUrl)
             apply()
         }
         Log.d("LauncherActivity", "Cached profile info: ${user.username}, ID: ${user.id}")
@@ -326,6 +358,7 @@ class LauncherActivity : AppCompatActivity() {
             remove(PREF_USER_EXPERIENCE)
             remove(PREF_USER_WORDS_COUNT)
             remove(PREF_USER_DB_ID)
+            remove(PREF_USER_PROFILE_PIC_URL)
             apply()
         }
         currentUserDbId = null
@@ -586,7 +619,10 @@ class LauncherActivity : AppCompatActivity() {
             Toast.makeText(this, "Profile section clicked.", Toast.LENGTH_SHORT).show()
             // Optionally, re-fetch profile on click if you want to ensure it's super fresh
             val token = TokenManager.getToken(this)
-            if (token != null) fetchUserProfile() else initiateDeviceLogin()
+            if (token == null) initiateDeviceLogin()
+
+            val intent = Intent(this, EditProfileActivity::class.java)
+            editProfileResultLauncher.launch(intent)
         }
 
         binding.buttonViewLeaderboard.setOnClickListener {
