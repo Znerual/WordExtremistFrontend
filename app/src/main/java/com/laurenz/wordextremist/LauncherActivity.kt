@@ -10,13 +10,11 @@ import android.view.View
 import android.widget.AdapterView
 import android.provider.Settings
 import android.widget.ArrayAdapter
-import android.widget.Spinner
 import android.widget.Toast
-import androidx.activity.viewModels
+import com.laurenz.wordextremist.auth.AuthManager
 import androidx.appcompat.app.AppCompatActivity
 
 import androidx.lifecycle.lifecycleScope
-import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.PlayGamesSdk
 //import com.laurenz.wordextremist.auth.AuthPgsStatus
 //import com.laurenz.wordextremist.auth.AuthViewModel
@@ -31,10 +29,8 @@ import android.widget.ImageView
 import kotlinx.coroutines.launch
 import java.util.Random
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
-import java.util.UUID
 import androidx.core.content.edit
 import com.laurenz.wordextremist.model.UserPublic
 import com.laurenz.wordextremist.network.ApiClient
@@ -151,14 +147,57 @@ class LauncherActivity : AppCompatActivity() {
         return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
     }
 
-    private fun checkAuthenticationAndFetchProfile() {
-        val token = TokenManager.getToken(this)
-        if (token != null) {
-            Log.d("LauncherActivity", "Token found. Verifying by fetching profile...")
-            fetchUserProfile(token) // Attempt to fetch profile with existing token
-        } else {
-            Log.d("LauncherActivity", "No token found. Initiating device login.")
-            initiateDeviceLogin()
+    private fun checkAuthAndLoadProfile() {
+        binding.progressBarAuth.visibility = View.VISIBLE
+        binding.buttonStartMatch.isEnabled = false
+        showDefaultProfileState("Loading...")
+
+        lifecycleScope.launch {
+            // Use the AuthManager to ensure we have a valid token.
+            // This will perform a silent login if needed.
+            val isAuthValid = AuthManager.ensureValidToken(this@LauncherActivity)
+
+            if (isAuthValid) {
+                // Now that we're sure the token is valid, fetch the profile.
+                Log.d("LauncherActivity", "Auth is valid. Fetching profile.")
+                fetchUserProfile() // This can be a simplified function now
+            } else {
+                // If even the silent login fails, show an error.
+                // This indicates a persistent problem (e.g., no network, server down).
+                Log.e("LauncherActivity", "AuthManager failed to ensure a valid token.")
+                showDefaultProfileState("Login failed. Check connection.")
+                Toast.makeText(this@LauncherActivity, "Login failed. Please check your network and restart.", Toast.LENGTH_LONG).show()
+                binding.progressBarAuth.visibility = View.GONE
+            }
+        }
+    }
+
+    // A simplified profile fetcher, as it assumes the token is valid.
+    private fun fetchUserProfile() {
+        lifecycleScope.launch {
+            try {
+                val response = ApiClient.instance.getMyProfile()
+                if (response.isSuccessful) {
+                    response.body()?.let { user ->
+                        Log.i("LauncherActivity", "Profile fetched: ${user.username}")
+                        updateProfileUI(user)
+                        cacheProfileInfo(user)
+                        currentUserDbId = user.id
+                        binding.buttonStartMatch.isEnabled = true
+                    }
+                } else {
+                    // This case is now less likely but good to have as a fallback.
+                    Log.e("LauncherActivity", "Profile fetch failed even after auth check: ${response.code()}")
+                    showDefaultProfileState("Could not load profile.")
+                    binding.buttonStartMatch.isEnabled = false
+                }
+            } catch (e: Exception) {
+                Log.e("LauncherActivity", "Exception fetching profile", e)
+                showDefaultProfileState("Error connecting to server.")
+                binding.buttonStartMatch.isEnabled = false
+            } finally {
+                binding.progressBarAuth.visibility = View.GONE
+            }
         }
     }
 
@@ -185,7 +224,8 @@ class LauncherActivity : AppCompatActivity() {
 
                 if (response.isSuccessful && response.body() != null) {
                     val backendTokenResponse = response.body()!!
-                    TokenManager.saveToken(this@LauncherActivity, backendTokenResponse.access_token)
+                    val expiresIn = backendTokenResponse.expiresIn ?: 3600
+                    TokenManager.saveToken(this@LauncherActivity, backendTokenResponse.accessToken, expiresIn)
                     Log.i("LauncherActivity", "Device login successful. JWT received.")
 
                     backendTokenResponse.user?.let { user ->
@@ -196,7 +236,7 @@ class LauncherActivity : AppCompatActivity() {
                     } ?: run {
                         // If user object not in login response, fetch it immediately
                         Log.w("LauncherActivity", "User object not in login response, fetching via /users/me.")
-                        fetchUserProfile(backendTokenResponse.access_token)
+                        fetchUserProfile()
                     }
                     binding.buttonStartMatch.isEnabled = true
                 } else {
@@ -214,51 +254,6 @@ class LauncherActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("LauncherActivity", "Exception during /device-login", e)
                 showDefaultProfileState("Connection error during login.")
-            } finally {
-                binding.progressBarAuth.visibility = View.GONE
-            }
-        }
-    }
-
-    private fun fetchUserProfile(tokenToUse: String) { // Takes token as param now
-        Log.d("LauncherActivity", "Fetching user profile with provided token...")
-        binding.progressBarAuth.visibility = View.VISIBLE
-        lifecycleScope.launch {
-            try {
-                // ApiClient.instance.getMyProfile() will use the token from TokenManager via interceptor
-                // However, if we just logged in, the interceptor might not have the new token yet if not set globally immediately.
-                // It's safer if ApiClient uses the *current* token from TokenManager.
-                // For this specific call after login, we *know* the token.
-                // The interceptor setup in ApiClient *should* pick up the latest from TokenManager.
-                val response = ApiClient.instance.getMyProfile()
-                if (response.isSuccessful) {
-                    response.body()?.let { user ->
-                        Log.i("LauncherActivity", "Profile fetched: ${user.username}, Level: ${user.level}, Words: ${user.wordsCount}")
-                        updateProfileUI(user)
-                        cacheProfileInfo(user)
-                        currentUserDbId = user.id
-                        binding.buttonStartMatch.isEnabled = true
-                    } ?: run {
-                        Log.w("LauncherActivity", "Profile fetch successful but body is null.")
-                        showDefaultProfileState("Could not load profile data.")
-                        binding.buttonStartMatch.isEnabled = false // Can't start if profile fails
-                    }
-                } else {
-                    Log.e("LauncherActivity", "Error fetching profile: ${response.code()} - ${response.errorBody()?.string()}")
-                    if (response.code() == 401 || response.code() == 403) { // Unauthorized or Forbidden
-                        Log.w("LauncherActivity", "Token invalid/expired. Clearing token and re-initiating login.")
-                        TokenManager.clearToken(this@LauncherActivity)
-                        clearCachedProfileInfo()
-                        initiateDeviceLogin() // Re-login
-                    } else {
-                        showDefaultProfileState("Could not load profile.")
-                        binding.buttonStartMatch.isEnabled = false
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("LauncherActivity", "Exception fetching profile", e)
-                showDefaultProfileState("Error connecting to server.")
-                binding.buttonStartMatch.isEnabled = false
             } finally {
                 binding.progressBarAuth.visibility = View.GONE
             }
@@ -497,7 +492,7 @@ class LauncherActivity : AppCompatActivity() {
             return
         }
 
-        checkAuthenticationAndFetchProfile()
+        checkAuthAndLoadProfile()
 
         // If dimensions are ready
         if (parentViewWidth > 0 && parentViewHeight > 0 && animatedElementsList.isNotEmpty()) {
@@ -582,7 +577,7 @@ class LauncherActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "Authenticating... Please wait.", Toast.LENGTH_SHORT).show()
                 // Auth process should be running or will be triggered by onResume if token is missing
-                checkAuthenticationAndFetchProfile() // Re-check/trigger auth
+                checkAuthAndLoadProfile() // Re-check/trigger auth
             }
 
         }
@@ -591,7 +586,7 @@ class LauncherActivity : AppCompatActivity() {
             Toast.makeText(this, "Profile section clicked.", Toast.LENGTH_SHORT).show()
             // Optionally, re-fetch profile on click if you want to ensure it's super fresh
             val token = TokenManager.getToken(this)
-            if (token != null) fetchUserProfile(token) else initiateDeviceLogin()
+            if (token != null) fetchUserProfile() else initiateDeviceLogin()
         }
 
         binding.buttonViewLeaderboard.setOnClickListener {
@@ -612,7 +607,7 @@ class LauncherActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "Please sign in to view your Word Vault.", Toast.LENGTH_LONG).show()
                 // Optionally, trigger sign-in
-                checkAuthenticationAndFetchProfile()
+                checkAuthAndLoadProfile()
             }
         }
 

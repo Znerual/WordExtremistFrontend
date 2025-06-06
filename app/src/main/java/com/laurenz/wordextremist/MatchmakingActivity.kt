@@ -7,6 +7,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View // Import View
 import android.widget.Toast
+import com.laurenz.wordextremist.auth.AuthManager
 // Removed activity viewModels import
 import androidx.appcompat.app.AppCompatActivity
 // Removed Observer import
@@ -61,55 +62,69 @@ class MatchmakingActivity : AppCompatActivity() {
             cancelMatchmaking()
         }
 
-        val token = TokenManager.getToken(this)
-        if (token == null) {
-            Log.e("MatchmakingActivity", "No token found! User should be authenticated before starting matchmaking.")
-            Toast.makeText(this, "Authentication required. Please restart.", Toast.LENGTH_LONG).show()
-            // Navigate back to Launcher, which will handle login
-            startActivity(Intent(this, LauncherActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            })
-            finish()
-            return
-        }
-        // Token exists, fetch user profile to get DB ID and username for display/logic
-        fetchUserProfileAndStartPolling()
+        beginMatchmakingProcess()
+
+
 
     }
 
-    private fun fetchUserProfileAndStartPolling() {
-        binding.textViewStatus.text = "Verifying user..."
-        //binding.progressBarMatchmaking.visibility = View.VISIBLE
+    private fun beginMatchmakingProcess() {
+        binding.textViewStatus.text = "Authenticating..."
         binding.buttonCancelMatchmaking.isEnabled = false
 
         lifecycleScope.launch {
+            val isAuthValid = AuthManager.ensureValidToken(this@MatchmakingActivity)
+
+            if (isAuthValid) {
+                // Auth is successful, now fetch the user's profile to get necessary details
+                Log.d("MatchmakingActivity", "Authentication successful. Fetching user profile.")
+                binding.textViewStatus.text = "Verifying profile..."
+                fetchUserProfileAndStartPolling()
+            } else {
+                // Silent re-login failed. Show an error and don't proceed.
+                Log.e("MatchmakingActivity", "AuthManager failed to ensure a valid token.")
+                binding.textViewStatus.text = "Authentication failed.\nPlease try again."
+                Toast.makeText(this@MatchmakingActivity, "Authentication failed. Check connection.", Toast.LENGTH_LONG).show()
+                // Optionally disable the cancel button or change its text to "Back"
+                binding.buttonCancelMatchmaking.text = "Back"
+                binding.buttonCancelMatchmaking.isEnabled = true
+            }
+        }
+    }
+
+
+    private fun fetchUserProfileAndStartPolling() {
+        lifecycleScope.launch {
             try {
-                val profileResponse = ApiClient.instance.getMyProfile() // Uses token from TokenManager
+                // At this point, we assume the token is valid.
+                val profileResponse = ApiClient.instance.getMyProfile()
                 if (profileResponse.isSuccessful && profileResponse.body() != null) {
                     val user = profileResponse.body()!!
                     ownDatabaseUserId = user.id
                     actualUsername = user.username ?: "Player${user.id}"
-                    ownLevel = user.level ?: 0
+                    ownLevel = user.level
                     Log.i("MatchmakingActivity", "User profile verified. DB ID: $ownDatabaseUserId, Username: $actualUsername, Lvl: ${user.level}")
-                    startMatchmakingPolling() // Proceed to matchmaking
+
+                    // Profile is fetched, now we can start the polling for a match.
+                    startMatchmakingPolling()
                 } else {
                     val errorBody = profileResponse.errorBody()?.string() ?: "Failed to verify profile"
                     Log.e("MatchmakingActivity", "Error verifying profile: ${profileResponse.code()} - $errorBody")
                     binding.textViewStatus.text = "Error: Could not verify user."
-                    //binding.progressBarMatchmaking.visibility = View.GONE
                     Toast.makeText(this@MatchmakingActivity, "User verification failed.", Toast.LENGTH_LONG).show()
-                    // Option: go back to Launcher if profile fetch fails critically
-                    navigateToLauncher(clearTask = true)
+                    binding.buttonCancelMatchmaking.text = "Back"
+                    binding.buttonCancelMatchmaking.isEnabled = true
                 }
             } catch (e: Exception) {
                 Log.e("MatchmakingActivity", "Exception verifying profile: ${e.message}", e)
                 binding.textViewStatus.text = "Error: Connection problem."
-                //binding.progressBarMatchmaking.visibility = View.GONE
                 Toast.makeText(this@MatchmakingActivity, "Profile verification error.", Toast.LENGTH_LONG).show()
-                navigateToLauncher(clearTask = true)
+                binding.buttonCancelMatchmaking.text = "Back"
+                binding.buttonCancelMatchmaking.isEnabled = true
             }
         }
     }
+
 
     private fun startMatchmakingPolling() {
         if (ownDatabaseUserId == null) { // Should be set by fetchUserProfileAndStartPolling
@@ -131,7 +146,7 @@ class MatchmakingActivity : AppCompatActivity() {
 
         matchmakingJob = lifecycleScope.launch {
             var matchFound = false
-            delay(250L) // Initial small delay
+            delay(50L) // Initial small delay
 
             while (isActive && !matchFound) {
                 try {
@@ -164,7 +179,7 @@ class MatchmakingActivity : AppCompatActivity() {
                                         binding.morphingSymbolView.playMatchFoundPulse()
                                         binding.textViewStatus.text = "Match Found!"
                                         binding.buttonCancelMatchmaking.isEnabled = false
-                                        delay(800)
+                                        delay(80)
                                         if (!isActive) break
                                         proceedToGame(matchmakingStatus.game_id, ownDatabaseUserId!!, ownLevel!!, matchmakingStatus.language ?: gameLanguageForMatchmaking, matchmakingStatus.opponent_name, matchmakingStatus.opponent_level )
                                     } else {
@@ -228,7 +243,7 @@ class MatchmakingActivity : AppCompatActivity() {
                 }
 
                 if (!matchFound && isActive) {
-                    val pollInterval = 3000L
+                    val pollInterval = 500L
                     Log.d("MatchmakingActivity", "Waiting ${pollInterval}ms before next poll.")
                     delay(pollInterval)
                 }

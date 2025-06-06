@@ -7,6 +7,7 @@ import com.laurenz.wordextremist.model.GetOrCreateUserRequestData
 import com.laurenz.wordextremist.model.MatchmakingResponse
 import com.laurenz.wordextremist.model.UserPublic // Your Pydantic UserPublic model mirrored in Kotlin
 import com.laurenz.wordextremist.model.SentencePromptPublic // Your Pydantic model mirrored
+import com.laurenz.wordextremist.model.WordVaultEntry
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -77,4 +78,7 @@ interface ApiService {
     suspend fun cancelMatchmaking(
         // @Body requestData: CancelMatchmakingRequestData // Send user_id in the body
     ): Response<Unit> // Returns no body on success
+
+    @GET("api/v1/auth/users/me/words")
+    suspend fun getMyWords(): Response<List<WordVaultEntry>>
 }
