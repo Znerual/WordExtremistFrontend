@@ -108,15 +108,16 @@
     <color name="gem_word_text">#FF3700B3</color>      <!-- Dark purple for gem text -->
 
     <color name="word_wheel_path">#A08D6E63</color> <!-- Faded journal text color for the wheel path -->
-    <color name="word_wheel_text_default">#795548</color> <!-- Default text color for words on wheel -->
-    <color name="word_wheel_text_highlight">@color/primary</color> <!-- Highlighted word on wheel -->
+    <color name="word_wheel_background">#FDFBF5</color>
+    <color name="word_wheel_text_default">#5D5D5D</color>
+    <color name="word_creativity_0">#9E9E9E</color>  <!-- Grey for score 0 -->
+    <color name="word_creativity_1">#5D5D5D</color>  <!-- Dark grey for score 1 -->
+    <color name="word_creativity_2">#2196F3</color>  <!-- Blue for score 2 -->
+    <color name="word_creativity_3">#4CAF50</color>  <!-- Green for score 3 -->
+    <color name="word_creativity_4">#FF9800</color>  <!-- Orange for score 4 -->
+    <color name="word_creativity_5">#F44336</color>  <!-- Red/Primary for score 5 -->
+    <color name="word_wheel_text_highlight">#FF5722</color> <!-- A distinct highlight, your app's primary orange -->
 
-    <color name="word_creativity_0">#A0AEC0</color> <!-- Low creativity / Default (text_hint like) -->
-    <color name="word_creativity_1">#718096</color> <!-- Slightly better (text_secondary like) -->
-    <color name="word_creativity_2">@color/journal_text_primary</color> <!-- Good (like standard journal text) -->
-    <color name="word_creativity_3">@color/secondary</color> <!-- Creative (Teal) -->
-    <color name="word_creativity_4">@color/primary</color>   <!-- Very Creative (Orange) -->
-    <color name="word_creativity_5">@color/accent</color>    <!-- Genius! (Gold/Yellow) -->
 
     <color name="word_wheel_text_highlight_creative_0">#81D4FA</color> <!-- Lighter blue for low creativity highlight -->
     <color name="word_wheel_text_highlight_creative_5">#FFF59D</color> <!-- Lighter yellow for high creativity highlight -->

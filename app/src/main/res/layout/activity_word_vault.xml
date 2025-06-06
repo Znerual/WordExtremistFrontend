@@ -9,24 +9,20 @@
     tools:context=".WordVaultActivity">
 
     <!-- Toolbar -->
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBarLayout"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarWordVault"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="?attr/actionBarSize"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:background="?attr/colorPrimaryContainer"
-        android:elevation="4dp">
+        app:title="My Creative Journal"
+        app:titleTextColor="@color/text_primary"
+        app:fontFamily="@font/poppins"
+        app:titleTextAppearance="@style/TextAppearance.AppCompat.Widget.ActionBar.Title"
+        android:background="@android:color/transparent"
+        app:navigationIcon="?attr/homeAsUpIndicator"/>
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbarWordVault"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="My Creative Journal"
-            app:titleTextColor="?attr/colorOnPrimaryContainer"
-            app:navigationIcon="?attr/homeAsUpIndicator"/>
-    </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Pedestal Area -->
     <LinearLayout
@@ -35,260 +31,269 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical|center_horizontal"
-        android:paddingTop="24dp"
+        android:paddingTop="16dp"
         android:paddingBottom="16dp"
         android:clipToPadding="false"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout"
+        app:layout_constraintTop_toBottomOf="@id/toolbarWordVault"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <!-- Pedestal 2 (Silver/Left) -->
-        <LinearLayout
-            android:id="@+id/pedestal2"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/pedestalCard2"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="110dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="8dp">
-
-            <FrameLayout
-                android:layout_width="100dp"
-                android:layout_height="70dp"
-                android:background="@drawable/gem_word_item_background"
-                app:backgroundTint="@color/pedestal_silver"
+            android:layout_marginHorizontal="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@android:color/white">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:padding="8dp">
+                <TextView
+                    android:id="@+id/textViewPedestalRank2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="#2"
+                    android:fontFamily="@font/poppins"
+                    android:textSize="14sp"
+                    android:textColor="#A9A9A9"/>
                 <TextView
                     android:id="@+id/textViewPedestalWord2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    tools:text="Clever"
+                    tools:text="Prehistoric"
                     android:textSize="18sp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins"
                     android:textStyle="bold"
-                    android:textColor="@color/journal_text_primary"
-                    android:layout_gravity="center"
-                    android:gravity="center"/>
-            </FrameLayout>
-            <View
-                android:layout_width="80dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pedestal_top_shape"
-                android:backgroundTint="@color/pedestal_silver"
-                android:alpha="0.7"/>
-            <TextView
-                android:id="@+id/textViewPedestalRank2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="#2"
-                android:textSize="12sp"
-                android:textColor="@color/pedestal_silver"/>
-        </LinearLayout>
+                    android:textColor="@color/text_primary"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <!-- Pedestal 1 (Gold/Center - Taller) -->
-        <LinearLayout
-            android:id="@+id/pedestal1"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/pedestalCard1"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="130dp"
             android:layout_weight="1.2"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="8dp">
-
-            <FrameLayout
-                android:layout_width="120dp"
-                android:layout_height="85dp"
-                android:background="@drawable/gem_word_item_background"
-                app:backgroundTint="@color/pedestal_gold"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:strokeColor="#FFD700"
+            app:strokeWidth="2dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:padding="10dp">
+                <TextView
+                    android:id="@+id/textViewPedestalRank1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="#1"
+                    android:textSize="16sp"
+                    android:fontFamily="@font/poppins"
+                    android:textColor="#FFC400"/>
                 <TextView
                     android:id="@+id/textViewPedestalWord1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    tools:text="Brilliant"
+                    tools:text="Violently"
                     android:textSize="22sp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins"
                     android:textStyle="bold"
-                    android:textColor="@color/journal_text_primary"
-                    android:layout_gravity="center"
-                    android:gravity="center"/>
-            </FrameLayout>
-            <View
-                android:layout_width="100dp"
-                android:layout_height="25dp"
-                android:background="@drawable/pedestal_top_shape"
-                android:backgroundTint="@color/pedestal_gold"
-                android:alpha="0.7"/>
-            <TextView
-                android:id="@+id/textViewPedestalRank1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="#1"
-                android:textSize="14sp"
-                android:textColor="@color/pedestal_gold"/>
-        </LinearLayout>
+                    android:textColor="@color/text_primary"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-    <!-- Pedestal 3 (Bronze/Right) -->
-        <LinearLayout
-            android:id="@+id/pedestal3"
+        <!-- Pedestal 3 (Bronze/Right) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/pedestalCard3"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="110dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="8dp">
-            <FrameLayout
-                android:layout_width="100dp"
-                android:layout_height="70dp"
-                android:background="@drawable/gem_word_item_background"
-                app:backgroundTint="@color/pedestal_bronze"
+            android:layout_marginHorizontal="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="@android:color/white">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:padding="8dp">
+                <TextView
+                    android:id="@+id/textViewPedestalRank3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="#3"
+                    android:fontFamily="@font/poppins"
+                    android:textSize="14sp"
+                    android:textColor="#CD7F32"/>
                 <TextView
                     android:id="@+id/textViewPedestalWord3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    tools:text="Astute"
+                    tools:text="Scattered"
                     android:textSize="18sp"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins"
                     android:textStyle="bold"
-                    android:textColor="@color/journal_text_primary"
-                    android:layout_gravity="center"
-                    android:gravity="center"/>
-            </FrameLayout>
-            <View
-                android:layout_width="80dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pedestal_top_shape"
-                android:backgroundTint="@color/pedestal_bronze"
-                android:alpha="0.7"/>
-            <TextView
-                android:id="@+id/textViewPedestalRank3"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="#3"
-                android:textSize="12sp"
-                android:textColor="@color/pedestal_bronze"/>
-        </LinearLayout>
+                    android:textColor="@color/text_primary"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
     <!-- Details Display Area (for clicked pedestal/wheel word) -->
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/detailsDisplayArea"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/details_popup_background"
         android:layout_marginHorizontal="24dp"
         android:layout_marginTop="16dp"
-        android:elevation="8dp"
         android:visibility="gone"
         tools:visibility="visible"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@android:color/white"
         app:layout_constraintTop_toBottomOf="@id/pedestalArea"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
-
-        <TextView
-            android:id="@+id/textViewDetailWord"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            tools:text="Brilliant"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/primary"
-            android:gravity="center_horizontal"
-            android:layout_marginBottom="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Prompt:"
-            android:textSize="12sp"
-            android:textColor="@color/journal_text_secondary"/>
-        <TextView
-            android:id="@+id/textViewDetailPrompt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            tools:text="Make it more EXTREME!"
-            android:textSize="14sp"
-            android:textColor="@color/journal_text_primary"
-            android:layout_marginBottom="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Used in:"
-            android:textSize="12sp"
-            android:textColor="@color/journal_text_secondary"/>
-        <TextView
-            android:id="@+id/textViewDetailSentence"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            tools:text="The small spark became a brilliant inferno."
-            android:textSize="14sp"
-            android:textColor="@color/journal_text_primary"/>
-    </LinearLayout>
+            android:orientation="vertical"
+            android:padding="16dp">
+            <TextView
+                android:id="@+id/textViewDetailWord"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:text="Violently"
+                android:textSize="24sp"
+                android:fontFamily="@font/poppins"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:gravity="center_horizontal"
+                android:layout_marginBottom="12dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Prompt:"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins"
+                android:textColor="@color/text_secondary"/>
+            <TextView
+                android:id="@+id/textViewDetailPrompt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:text="Make it more EXTREME!"
+                android:textSize="16sp"
+                android:fontFamily="@font/poppins"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="12dp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Used in:"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins"
+                android:textColor="@color/text_secondary"/>
+            <TextView
+                android:id="@+id/textViewDetailSentence"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                tools:text="The wind blew violently through the trees."
+                android:textSize="16sp"
+                android:fontFamily="@font/poppins"
+                android:textColor="@color/text_primary"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Word Wheel Placeholder (Replace with your Custom View) -->
-<com.laurenz.wordextremist.views.WordWheelView
-    android:id="@+id/wordWheelView"
-    android:layout_width="0dp"
-    android:layout_height="0dp"
-    android:layout_marginTop="0dp"
-    android:layout_marginBottom="0dp"
-    android:elevation="10dp"
-    app:layout_constraintTop_toBottomOf="@id/detailsDisplayArea"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    android:layout_marginHorizontal="0dp"
-    tools:background="#E0E0E0"
-    tools:layout_height="1000dp"
-    tools:layout_width="match_parent"/>
+    <com.laurenz.wordextremist.views.WordWheelView
+        android:id="@+id/wordWheelView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="0dp"
+        android:elevation="10dp"
+        app:layout_constraintTop_toBottomOf="@id/detailsDisplayArea"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginHorizontal="0dp"
+        tools:background="#E0E0E0"
+        tools:layout_height="1000dp"
+        tools:layout_width="match_parent"/>
 
     <!-- Empty State View (Shown if no creative words) -->
-<LinearLayout
-android:id="@+id/emptyStateView"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
-android:orientation="vertical"
-android:gravity="center"
-android:visibility="gone"
-tools:visibility="gone"
-app:layout_constraintTop_toBottomOf="@id/appBarLayout"
-app:layout_constraintBottom_toBottomOf="parent"
-app:layout_constraintStart_toStartOf="parent"
-app:layout_constraintEnd_toEndOf="parent">
-
-<ImageView
-    android:layout_width="80dp"
-    android:layout_height="80dp"
-    android:src="@drawable/ic_empty_journal"
-    app:tint="@color/journal_text_secondary"
-    android:layout_marginBottom="16dp"/>
-<!-- Create ic_empty_journal: an open book/empty chest icon -->
-
-<TextView
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="Your Creative Journal Awaits!"
-    android:textSize="18sp"
-    android:textColor="@color/journal_text_primary"
-    android:layout_marginBottom="8dp"/>
-<TextView
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="Play some games to discover and collect your most brilliant words."
-    android:textSize="14sp"
-    android:textColor="@color/journal_text_secondary"
-    android:gravity="center_horizontal"
-    android:paddingHorizontal="32dp"/>
-</LinearLayout>
     <TextView
         android:id="@+id/textViewVaultStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/loading"
+        android:fontFamily="@font/poppins"
         android:textSize="18sp"
+        android:textColor="@color/text_secondary"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/emptyStateView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        tools:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/toolbarWordVault"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_treasure_chest"
+            app:tint="@color/text_secondary"
+            android:alpha="0.7"
+            android:layout_marginBottom="16dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Your Journal Awaits"
+            android:textSize="20sp"
+            android:fontFamily="@font/poppins"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Play games to collect your most brilliant words here."
+            android:textSize="16sp"
+            android:fontFamily="@font/poppins"
+            android:textColor="@color/text_secondary"
+            android:gravity="center_horizontal"
+            android:paddingHorizontal="32dp"/>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

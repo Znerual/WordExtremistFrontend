@@ -27,6 +27,10 @@ class WordVaultActivity : AppCompatActivity() {
         binding = ActivityWordVaultBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.toolbarWordVault.setNavigationOnClickListener {
+            finish()
+        }
+
         // Set up listeners for both wheel and pedestal
         setupSelectionListeners()
 
@@ -102,24 +106,23 @@ class WordVaultActivity : AppCompatActivity() {
     }
 
     private fun populatePedestal(pedestalEntries: List<WordVaultEntry>) {
-        val pedestalViews = listOf(
-            binding.pedestal1 to binding.textViewPedestalWord1,
-            binding.pedestal2 to binding.textViewPedestalWord2,
-            binding.pedestal3 to binding.textViewPedestalWord3
+        val pedestalData = listOf(
+            Triple(binding.pedestalCard1, binding.textViewPedestalWord1, binding.textViewPedestalRank1),
+            Triple(binding.pedestalCard2, binding.textViewPedestalWord2, binding.textViewPedestalRank2),
+            Triple(binding.pedestalCard3, binding.textViewPedestalWord3, binding.textViewPedestalRank3)
         )
 
-        // Set words for available entries
         pedestalEntries.forEachIndexed { index, entry ->
-            if (index < pedestalViews.size) {
-                val (pedestalLayout, textView) = pedestalViews[index]
-                textView.text = entry.submittedWord
-                pedestalLayout.visibility = View.VISIBLE
+            if (index < pedestalData.size) {
+                val (card, wordView, rankView) = pedestalData[index]
+                wordView.text = entry.submittedWord
+                rankView.text = "#${index + 1}"
+                card.visibility = View.VISIBLE
             }
         }
 
-        // Hide unused pedestal slots
-        for (i in pedestalEntries.size until pedestalViews.size) {
-            pedestalViews[i].first.visibility = View.INVISIBLE // Use INVISIBLE to maintain layout balance
+        for (i in pedestalEntries.size until pedestalData.size) {
+            pedestalData[i].first.visibility = View.INVISIBLE
         }
     }
 
@@ -159,10 +162,9 @@ class WordVaultActivity : AppCompatActivity() {
             }
         }
 
-        // Pedestal Click Listeners
-        // We use the index (0, 1, 2) to get the correct full WordVaultEntry from our stored list.
-        binding.pedestal1.setOnClickListener { handlePedestalClick(0) }
-        binding.pedestal2.setOnClickListener { handlePedestalClick(1) }
-        binding.pedestal3.setOnClickListener { handlePedestalClick(2) }
+        // Attach listeners to the new CardViews
+        binding.pedestalCard1.setOnClickListener { handlePedestalClick(0) }
+        binding.pedestalCard2.setOnClickListener { handlePedestalClick(1) }
+        binding.pedestalCard3.setOnClickListener { handlePedestalClick(2) }
     }
 }

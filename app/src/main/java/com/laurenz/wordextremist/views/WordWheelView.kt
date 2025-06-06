@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import android.view.ScaleGestureDetector
 import com.laurenz.wordextremist.R
 import kotlin.math.*
@@ -22,7 +23,6 @@ class WordWheelView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    // ... (existing properties: OnWordSelectedListener, WordInfo, paints, etc.) ...
     interface OnWordSelectedListener {
         fun onWordSelected(word: String, sentence: String?, prompt: String?)
     }
@@ -52,23 +52,11 @@ class WordWheelView @JvmOverloads constructor(
     )
 
     private val wordsList = mutableListOf<WordInfo>()
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = 40f
-        color = ContextCompat.getColor(context, R.color.word_wheel_text_default)
-        textAlign = Paint.Align.CENTER
-    }
-    private val textMeasurePaint = Paint()
-    private val highlightPaint = Paint(textPaint).apply {
-        color = ContextCompat.getColor(context, R.color.word_wheel_text_highlight)
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-    }
-    // ... pathPaint ...
-    private val pathPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = ContextCompat.getColor(context, R.color.word_wheel_path)
-        pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
-    }
+
+    private lateinit var backgroundPaint: Paint
+    private lateinit var textPaint: Paint // Will be our base paint
+    private lateinit var textMeasurePaint: Paint
+    private lateinit var highlightPaint: Paint // For the selected word
 
 
     private var viewCenterX = 0f // Renamed from centerX for clarity
@@ -110,12 +98,43 @@ class WordWheelView @JvmOverloads constructor(
 
     // --- Animation of the force graph creation
     private var layoutAnimator: ValueAnimator? = null
-    private val layoutAnimationDuration = 3000L // Duration for words to settle
+    private val layoutAnimationDuration = 1500L // Duration for words to settle
 
     init {
         isClickable = true
         isFocusable = true
+        initPaints()
         setupScaleGestureDetector()
+    }
+
+    private fun initPaints() {
+        val poppinsTypeface = try {
+            ResourcesCompat.getFont(context, R.font.poppins) ?: Typeface.DEFAULT
+        } catch (e: Exception) {
+            Log.e("WordWheelView", "Poppins font not found, using default.", e)
+            Typeface.DEFAULT
+        }
+
+        backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = ContextCompat.getColor(context, R.color.word_wheel_background)
+            style = Paint.Style.FILL
+            maskFilter = BlurMaskFilter(20f, BlurMaskFilter.Blur.NORMAL) // Soft edge for background
+        }
+
+        textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = poppinsTypeface
+            textAlign = Paint.Align.CENTER
+            // Text size will be set dynamically in onSizeChanged
+        }
+
+        textMeasurePaint = Paint(textPaint)
+
+        highlightPaint = Paint(textPaint).apply {
+            color = ContextCompat.getColor(context, R.color.word_wheel_text_highlight)
+            style = Paint.Style.FILL_AND_STROKE
+            strokeWidth = 2f
+            // Text size and other properties will be set in onDraw
+        }
     }
 
     private fun setupScaleGestureDetector() {
@@ -205,27 +224,18 @@ class WordWheelView @JvmOverloads constructor(
         if (width == 0 || height == 0) {
             // Handle deferral if needed, or rely on onSizeChanged to call performLayoutCalculations
         }
-        textMeasurePaint.textSize = textPaint.textSize
 
         words.forEach { item ->
             val wordText = item.first
             val creativity = item.second
             val sentencePromptPair = item.third
 
-            val measuredWidth = textMeasurePaint.measureText(wordText)
-            val metrics = textMeasurePaint.fontMetrics
-            val measuredHeight = metrics.descent - metrics.ascent
-            val initialRadialOffset = (random.nextFloat() * 0.2f - 0.1f) * maxRadialScatterRatio
             wordsList.add(
                 WordInfo(
                     text = wordText,
                     originalSentence = sentencePromptPair.first,
                     originalPrompt = sentencePromptPair.second,
                     creativityScore = creativity, // Store creativity score
-                    currentRadialOffset = initialRadialOffset,
-                    targetRadialOffset = initialRadialOffset,
-                    textWidth = measuredWidth,
-                    textHeight = measuredHeight
                 )
             )
         }
@@ -244,6 +254,8 @@ class WordWheelView @JvmOverloads constructor(
 
         if (isAttachedToWindow && width > 0 && height > 0) {
             currentEffectiveRadius = baseRadius * scaleFactor
+
+            updateTextMetrics()
             performLayoutCalculationsAndAnimate() // New combined function
         }
     }
@@ -255,17 +267,29 @@ class WordWheelView @JvmOverloads constructor(
         baseRadius = min(w, h) * 0.35f
         currentEffectiveRadius = baseRadius * scaleFactor // Apply current scale
 
-        val unscaledTextSize = baseRadius * 0.12f
-        textPaint.textSize = unscaledTextSize
-        highlightPaint.textSize = unscaledTextSize * 1.05f
-        textMeasurePaint.textSize = unscaledTextSize
+
+        val gradientRadius = baseRadius * 1.2f // Make the gradient slightly larger than the word area
+        if (gradientRadius > 0) {
+            backgroundPaint.shader = RadialGradient(
+                viewCenterX,
+                viewCenterY,
+                gradientRadius,
+                intArrayOf(
+                    ContextCompat.getColor(context, R.color.word_wheel_background), // Opaque center color
+                    ContextCompat.getColor(context, R.color.word_wheel_background), // Opaque for most of the radius
+                    Color.TRANSPARENT                                               // Fade to transparent at the edge
+                ),
+                floatArrayOf(0f, 0.8f, 1.0f), // Defines the color stops for the gradient
+                Shader.TileMode.CLAMP
+            )
+        }
+
+
+
+        updateTextMetrics()
+
 
         if (wordsList.isNotEmpty()) {
-            wordsList.forEach { wordInfo -> // Recalculate text metrics if size changed
-                wordInfo.textWidth = textMeasurePaint.measureText(wordInfo.text)
-                val metrics = textMeasurePaint.fontMetrics
-                wordInfo.textHeight = metrics.descent - metrics.ascent
-            }
             performLayoutCalculationsAndAnimate() // Re-layout and animate if size changes
         }
         constrainPanOffsets()
@@ -276,6 +300,36 @@ class WordWheelView @JvmOverloads constructor(
         if (isAttachedToWindow && width > 0 && height > 0 && wordsList.isNotEmpty()) {
             stopAllMotionAndAnimations()
             performLayoutCalculationsAndAnimate()
+        }
+    }
+
+    private fun updateTextMetrics() {
+        if (baseRadius == 0f) return // Cannot calculate without a radius
+
+        // 1. Determine a base text size. Make it generous but cap it.
+        var newTextSize = (baseRadius * 0.15f).coerceAtMost(60f)
+
+        // 2. If there are many words, reduce the text size to avoid clutter.
+        val wordCountThreshold = 15
+        if (wordsList.size > wordCountThreshold) {
+            // Create a scaling factor that shrinks the text as word count increases.
+            // CoerceAtLeast ensures the text never becomes unreadably small.
+            val scaleDownFactor = (wordCountThreshold.toFloat() / wordsList.size.toFloat()).coerceAtLeast(0.7f)
+            newTextSize *= scaleDownFactor
+        }
+
+        Log.d("WordWheelView", "Updating text metrics. Word count: ${wordsList.size}, New text size: $newTextSize")
+
+        // 3. Apply the new size to our paint objects.
+        textPaint.textSize = newTextSize
+        textMeasurePaint.textSize = newTextSize
+        // highlightPaint's size is set dynamically in onDraw, so it will adapt automatically.
+
+        // 4. IMPORTANT: Recalculate width/height for every word, as these are now stale.
+        wordsList.forEach { wordInfo ->
+            wordInfo.textWidth = textMeasurePaint.measureText(wordInfo.text)
+            val metrics = textMeasurePaint.fontMetrics
+            wordInfo.textHeight = metrics.descent - metrics.ascent
         }
     }
 
@@ -294,7 +348,7 @@ class WordWheelView @JvmOverloads constructor(
     }
 
     // Renamed and modified to update TARGETS
-    private fun adjustWordTargetPositionsForOverlap(iterations: Int = 15, pushBase: Float = 4f) {
+    private fun adjustWordTargetPositionsForOverlap(iterations: Int = 12, pushBase: Float = 4f) {
         if (wordsList.size < 2) return
 
         val tempRect1 = RectF()
@@ -572,6 +626,9 @@ class WordWheelView @JvmOverloads constructor(
         canvas.translate(panOffsetX, panOffsetY)
         canvas.scale(scaleFactor, scaleFactor, viewCenterX, viewCenterY)
 
+        val gradientRadius = baseRadius * 1.2f
+        canvas.drawCircle(viewCenterX, viewCenterY, gradientRadius, backgroundPaint)
+
         // This matrix now contains the pan and scale transformations
         val wheelWorldMatrix = Matrix(canvas.matrix)
 
@@ -589,19 +646,19 @@ class WordWheelView @JvmOverloads constructor(
             canvas.translate(wheelLocalWordCenterX, wheelLocalWordCenterY)
             canvas.rotate(displayAngle + 90f) // Rotate canvas for text orientation
 
-            val basePaintColor = getCreativityColor(wordInfo.creativityScore)
             val currentPaint: Paint
-
             if (index == selectedWordIndex) {
-                // Modify highlightPaint based on base creativity color for better contrast or theme
-                highlightPaint.color = getHighlightCreativityColor(wordInfo.creativityScore, basePaintColor)
-                highlightPaint.textSize = textPaint.textSize * 1.1f // Make selected slightly bigger
+                // For selected word, use the special highlight paint
+                highlightPaint.textSize = textPaint.textSize * 1.15f // Make it bigger
                 currentPaint = highlightPaint
             } else {
-                textPaint.color = basePaintColor
-                textPaint.textSize = baseRadius * 0.12f // Reset to base size if not selected
+                // For unselected words, set color based on creativity
+                textPaint.color = getCreativityColor(wordInfo.creativityScore)
+                textPaint.textSize = textMeasurePaint.textSize // Reset to base size
                 currentPaint = textPaint
             }
+
+
             val textMetrics = currentPaint.fontMetrics
             val textYOffset = -(textMetrics.ascent + textMetrics.descent) / 2f // More accurate vertical centering
             canvas.drawText(wordInfo.text, 0f, textYOffset, currentPaint)
@@ -621,22 +678,23 @@ class WordWheelView @JvmOverloads constructor(
             //    to this wheel-local matrix.
             val finalScreenMatrix = Matrix(wheelWorldMatrix) // Start with wheel's pan & scale matrix
             finalScreenMatrix.preConcat(wordMatrixOnWheel) // Apply word's transform *within* the wheel's world
+            finalScreenMatrix.mapRect(wordInfo.visualRect, localTextRect)
             // Order: Word's local -> Word's on-wheel -> Wheel's world (pan/scale)
 
             // Actually, it's simpler: transform the local rect by wordMatrixOnWheel to get its bounds
             // in the wheel's unscaled/unpanned coordinate system, then transform *that rect*
             // by the wheelWorldMatrix. OR, transform the local rect by the combined matrix.
 
-            val combinedMatrixForWord = Matrix()
-            // Start with the word's orientation and position relative to the wheel's center
-            combinedMatrixForWord.setRotate(displayAngle + 90f) // Rotate text
-            combinedMatrixForWord.postTranslate(wheelLocalWordCenterX, wheelLocalWordCenterY) // Position on wheel
-
-            // Then, apply the overall canvas transformations (pan and scale) that were applied to the wheel
-            combinedMatrixForWord.postConcat(wheelWorldMatrix) // This maps from text local (0,0) to screen
-
-            // Transform the localTextRect to get the screenRect
-            combinedMatrixForWord.mapRect(wordInfo.visualRect, localTextRect)
+//            val combinedMatrixForWord = Matrix()
+//            // Start with the word's orientation and position relative to the wheel's center
+//            combinedMatrixForWord.setRotate(displayAngle + 90f) // Rotate text
+//            combinedMatrixForWord.postTranslate(wheelLocalWordCenterX, wheelLocalWordCenterY) // Position on wheel
+//
+//            // Then, apply the overall canvas transformations (pan and scale) that were applied to the wheel
+//            combinedMatrixForWord.postConcat(wheelWorldMatrix) // This maps from text local (0,0) to screen
+//
+//            // Transform the localTextRect to get the screenRect
+//            combinedMatrixForWord.mapRect(wordInfo.visualRect, localTextRect)
 
             // Store the center of this screen rectangle for simple proximity fallback if needed
             wordInfo.screenX = wordInfo.visualRect.centerX()
@@ -646,15 +704,15 @@ class WordWheelView @JvmOverloads constructor(
     }
 
     private fun getCreativityColor(score: Int): Int {
-        return ContextCompat.getColor(context, when (score) {
-            0 -> R.color.word_creativity_0
-            1 -> R.color.word_creativity_1
-            2 -> R.color.word_creativity_2
-            3 -> R.color.word_creativity_3
-            4 -> R.color.word_creativity_4
-            5 -> R.color.word_creativity_5
-            else -> R.color.word_creativity_0 // Default for scores outside 0-5
-        })
+        return ContextCompat.getColor(
+            context, when {
+                score >= 5 -> R.color.word_creativity_5
+                score == 4 -> R.color.word_creativity_4
+                score == 3 -> R.color.word_creativity_3
+                score == 2 -> R.color.word_creativity_2
+                else -> R.color.word_wheel_text_default // Default color for scores 0-1
+            }
+        )
     }
 
     private fun getHighlightCreativityColor(score: Int, baseColor: Int): Int {
