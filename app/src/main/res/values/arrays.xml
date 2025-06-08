@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="language_levels">
+        <item>A1 (Beginner)</item>
+        <item>A2 (Elementary)</item>
+        <item>B1 (Intermediate)</item>
+        <item>B2 (Upper-Intermediate)</item>
+        <item>C1 (Advanced)</item>
+        <item>C2 (Proficient)</item>
+        <item>Native</item>
+    </string-array>
+</resources>

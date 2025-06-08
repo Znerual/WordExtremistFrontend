@@ -66,6 +66,13 @@
         <item name="android:fontFamily">@font/poppins</item>
         <item name="android:textStyle">bold</item>
     </style>
+
+    <style name="Widget.App.ChipChoiceButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textColor">@color/chip_choice_text_color</item>
+        <item name="backgroundTint">@color/chip_choice_background_tint</item>
+        <item name="strokeWidth">0dp</item> <!-- Remove the outline stroke -->
+        <item name="cornerRadius">20dp</item> <!-- Make it pill-shaped -->
+    </style>
     <!-- Example Shape Appearances (Optional, but good for M3 consistency if needed) -->
     <!--
     <style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">

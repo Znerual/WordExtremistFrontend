@@ -40,5 +40,23 @@ data class UserPublic(
     val level: Int,
 
     @SerializedName("words_count")
-    val wordsCount: Int
+    val wordsCount: Int,
+
+    @SerializedName("country")
+    val country: String?,
+
+    @SerializedName("mother_tongue")
+    val motherTongue: String?,
+
+    @SerializedName("preferred_language")
+    val preferredLanguage: String?,
+
+    @SerializedName("birthday")
+    val birthday: String?, // Backend sends date as "YYYY-MM-DD" string
+
+    @SerializedName("gender")
+    val gender: String?,
+
+    @SerializedName("language_level")
+    val languageLevel: String?
 )

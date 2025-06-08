@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- Sets the background color of the circle -->
+    <solid android:color="@color/surface" />
+
+    <!-- Optional: Add a subtle border/stroke -->
+    <stroke
+        android:width="1dp"
+        android:color="#1A000000" /> <!-- A very light, semi-transparent black for a shadow effect -->
+
+</shape>

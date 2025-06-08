@@ -23,8 +23,8 @@
         app:titleTextColor="@color/text_primary" />
 
     <!-- Main Content Area -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/contentGroup"
+    <ScrollView
+        android:id="@+id/scrollView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/toolbarEditProfile"
@@ -32,83 +32,279 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Profile Picture Section -->
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/imageViewProfilePic"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_marginTop="32dp"
-            android:src="@drawable/ic_avatar_placeholder"
-            app:civ_border_color="#E0E0E0"
-            app:civ_border_width="2dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:src="@tools:sample/avatars" />
-
-        <!-- Button to change the profile picture -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/buttonChangePicture"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="bottom|end"
-            android:layout_marginEnd="4dp"
-            android:layout_marginBottom="4dp"
-            android:clickable="true"
-            android:focusable="true"
-            app:cardBackgroundColor="@color/primary"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="4dp"
-            app:layout_constraintCircle="@id/imageViewProfilePic"
-            app:layout_constraintCircleAngle="135"
-            app:layout_constraintCircleRadius="60dp"
-            tools:layout_editor_absoluteX="207dp"
-            tools:layout_editor_absoluteY="143dp"
-            app:layout_constraintTop_toTopOf="@id/imageViewProfilePic"
-            app:layout_constraintBottom_toBottomOf="@id/imageViewProfilePic"
-            app:layout_constraintStart_toStartOf="@id/imageViewProfilePic"
-            app:layout_constraintEnd_toEndOf="@id/imageViewProfilePic"
-            app:layout_constraintVertical_bias="0.85"
-            app:layout_constraintHorizontal_bias="0.85">
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_edit_camera"
-                app:tint="@android:color/white" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Username Input Field -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/textInputLayoutUsername"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="0dp"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/contentGroup"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="32dp"
-            android:layout_marginTop="48dp"
-            android:hint="Username"
-            app:boxCornerRadiusBottomEnd="12dp"
-            app:boxCornerRadiusBottomStart="12dp"
-            app:boxCornerRadiusTopEnd="12dp"
-            app:boxCornerRadiusTopStart="12dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/imageViewProfilePic">
+            android:paddingBottom="24dp">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/textInputEditTextUsername"
-                android:layout_width="match_parent"
+            <!-- Profile Picture Section -->
+            <View
+                android:id="@+id/profilePicBackground"
+                android:layout_width="128dp"
+                android:layout_height="128dp"
+                android:background="@drawable/background_circle_white"
+                app:layout_constraintTop_toTopOf="@id/imageViewProfilePic"
+                app:layout_constraintBottom_toBottomOf="@id/imageViewProfilePic"
+                app:layout_constraintStart_toStartOf="@id/imageViewProfilePic"
+                app:layout_constraintEnd_toEndOf="@id/imageViewProfilePic"
+                />
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/imageViewProfilePic"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginTop="24dp"
+                android:src="@drawable/ic_avatar_placeholder"
+                app:civ_border_color="#E0E0E0"
+                app:civ_border_width="2dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/buttonChangePicture"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/primary"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="4dp"
+                app:layout_constraintBottom_toBottomOf="@id/imageViewProfilePic"
+                app:layout_constraintEnd_toEndOf="@id/imageViewProfilePic"
+                app:layout_constraintHorizontal_bias="0.95"
+                app:layout_constraintStart_toStartOf="@id/imageViewProfilePic"
+                app:layout_constraintTop_toTopOf="@id/imageViewProfilePic"
+                app:layout_constraintVertical_bias="0.95">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_edit_camera"
+                    app:tint="@android:color/white" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Username Input Field -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutUsername"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="32dp"
+                android:layout_marginTop="24dp"
+                android:hint="Username"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/imageViewProfilePic">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/textInputEditTextUsername"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins"
+                    android:inputType="textPersonName|textCapWords"
+                    android:maxLength="20" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/textViewOptionalInfoLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Optional Information"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:fontFamily="@font/poppins_bold"
+                android:layout_marginTop="32dp"
+                app:layout_constraintTop_toBottomOf="@id/textInputLayoutUsername"
+                app:layout_constraintStart_toStartOf="@id/textInputLayoutUsername"
+                app:layout_constraintEnd_toEndOf="@id/textInputLayoutUsername"/>
+
+
+            <!-- Birthday -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutBirthday"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="Birthday"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:endIconDrawable="@drawable/ic_calendar_today"
+                app:endIconMode="custom"
+                app:layout_constraintTop_toBottomOf="@id/textViewOptionalInfoLabel"
+                app:layout_constraintStart_toStartOf="@id/textViewOptionalInfoLabel"
+                app:layout_constraintEnd_toEndOf="@id/textViewOptionalInfoLabel">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/textInputEditTextBirthday"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="false"
+                    android:cursorVisible="false"
+                    android:fontFamily="@font/poppins" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Gender -->
+            <TextView
+                android:id="@+id/textViewGenderLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
                 android:fontFamily="@font/poppins"
-                android:inputType="textPersonName|textCapWords"
-                android:maxLength="20" />
+                android:text="Gender"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="16sp"
+                app:layout_constraintStart_toStartOf="@id/textInputLayoutBirthday"
+                app:layout_constraintTop_toBottomOf="@id/textInputLayoutBirthday" />
 
-        </com.google.android.material.textfield.TextInputLayout>
+            <!-- MODIFIED: Gender Toggle Group with custom styles -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggleGroupGender"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:singleSelection="true"
+                app:selectionRequired="false"
+                app:layout_constraintTop_toBottomOf="@id/textViewGenderLabel"
+                app:layout_constraintStart_toStartOf="@id/textViewGenderLabel"
+                app:layout_constraintEnd_toEndOf="@id/textInputLayoutBirthday">
+                <Button
+                    android:id="@+id/buttonMale"
+                    style="@style/Widget.App.ChipChoiceButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Male"
+                    android:textAllCaps="false" />
+                <Button
+                    android:id="@+id/buttonFemale"
+                    style="@style/Widget.App.ChipChoiceButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Female"
+                    android:textAllCaps="false" />
+                <Button
+                    android:id="@+id/buttonOther"
+                    style="@style/Widget.App.ChipChoiceButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Other"
+                    android:textAllCaps="false" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Country -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutCountry"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="Country"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:layout_constraintTop_toBottomOf="@id/toggleGroupGender"
+                app:layout_constraintStart_toStartOf="@id/toggleGroupGender"
+                app:layout_constraintEnd_toEndOf="@id/toggleGroupGender">
+                <AutoCompleteTextView
+                    android:id="@+id/autoCompleteCountry"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:fontFamily="@font/poppins"/>
+            </com.google.android.material.textfield.TextInputLayout>
 
+
+            <!-- Mother Tongue -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutMotherTongue"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Mother Tongue"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:layout_constraintTop_toBottomOf="@id/textInputLayoutCountry"
+                app:layout_constraintStart_toStartOf="@id/textInputLayoutCountry"
+                app:layout_constraintEnd_toEndOf="@id/textInputLayoutCountry">
+                <AutoCompleteTextView
+                    android:id="@+id/autoCompleteMotherTongue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:fontFamily="@font/poppins"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Preferred Language -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutPreferredLanguage"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Preferred Game Language"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:layout_constraintTop_toBottomOf="@id/textInputLayoutMotherTongue"
+                app:layout_constraintStart_toStartOf="@id/textInputLayoutMotherTongue"
+                app:layout_constraintEnd_toEndOf="@id/textInputLayoutMotherTongue">
+                <AutoCompleteTextView
+                    android:id="@+id/autoCompletePreferredLanguage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:fontFamily="@font/poppins"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Language Level -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/textInputLayoutLanguageLevel"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Language Level"
+                app:boxCornerRadiusBottomEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxStrokeWidth="1dp"
+                app:layout_constraintTop_toBottomOf="@id/textInputLayoutPreferredLanguage"
+                app:layout_constraintStart_toStartOf="@id/textInputLayoutPreferredLanguage"
+                app:layout_constraintEnd_toEndOf="@id/textInputLayoutPreferredLanguage">
+                <AutoCompleteTextView
+                    android:id="@+id/autoCompleteLanguageLevel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none"
+                    android:fontFamily="@font/poppins"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
     <!-- Save Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonSaveChanges"

@@ -6,6 +6,7 @@ import com.laurenz.wordextremist.model.DeviceLoginRequestData
 import com.laurenz.wordextremist.model.MatchmakingResponse
 import com.laurenz.wordextremist.model.UserPublic // Your Pydantic UserPublic model mirrored in Kotlin
 import com.laurenz.wordextremist.model.SentencePromptPublic // Your Pydantic model mirrored
+import com.laurenz.wordextremist.model.UserOptionalInfoUpdateRequest
 import com.laurenz.wordextremist.model.WordVaultEntry
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -54,6 +55,11 @@ interface ApiService {
         @Part username: MultipartBody.Part?,
         @Part profile_picture: MultipartBody.Part?
     ): Response<UserPublic> // Returns the updated user object on success
+
+    @PATCH("api/v1/auth/users/me/optional-info")
+    suspend fun updateUserOptionalInfo(
+        @Body updateRequest: UserOptionalInfoUpdateRequest
+    ): Response<UserPublic>
 
     @POST("api/v1/auth/device-login") // New endpoint
     suspend fun deviceLogin(
