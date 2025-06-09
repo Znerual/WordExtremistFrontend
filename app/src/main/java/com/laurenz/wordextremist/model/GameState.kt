@@ -1,6 +1,7 @@
-package com.laurenz.wordextremist
+package com.laurenz.wordextremist.model
 
 import android.util.Log
+import com.laurenz.wordextremist.PlayerState
 import org.json.JSONObject // Import for JSON handling
 
 enum class PlayerTurn {
@@ -20,7 +21,8 @@ data class GameState(
     var wordsPlayedThisRoundByPlayer1: MutableList<String> = mutableListOf(),
     var wordsPlayedThisRoundByPlayer2: MutableList<String> = mutableListOf(),
     var allWordsPlayedThisRoundSet: MutableSet<String> = mutableSetOf(),
-    var isWaitingForOpponent: Boolean = true
+    var isWaitingForOpponent: Boolean = true,
+    var turnDurationSeconds: Int = 30
 ) {
     fun getCurrentPlayer(): PlayerState {
         return if (currentPlayerTurn == PlayerTurn.PLAYER_1) player1 else player2
@@ -109,10 +111,12 @@ data class GameState(
         wordToReplace = payload.optString("word_to_replace", wordToReplace)
         currentRound = payload.optInt("round", currentRound)
         language = payload.optString("language", language)
+        turnDurationSeconds = payload.optInt("turn_duration_seconds", 30)
         val serverP1Id = payload.optString("player1_server_id")
         val serverP2Id = payload.optString("player2_server_id")
         val serverP1StateJson = payload.optJSONObject("player1_state")
         val serverP2StateJson = payload.optJSONObject("player2_state")
+
 
         if (serverP1Id.isEmpty() || serverP2Id.isEmpty()) {
             Log.e("GameStateUpdate", "Server did not provide player1_server_id or player2_server_id. Cannot map players correctly.")
