@@ -179,28 +179,45 @@
         app:layout_constraintEnd_toEndOf="parent">
         <!-- Player 1 Section -->
         <LinearLayout
+            android:id="@+id/player1InfoContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="start">
-            <TextView
-                android:id="@+id/textViewPlayer1Name"
+            android:orientation="horizontal"
+            android:gravity="start|center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/imageViewPlayer1ProfilePic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/avatar_dummy"
+                app:civ_border_color="@color/primary"
+                app:civ_border_width="1.5dp"
+                android:layout_marginEnd="8dp"/>
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/player_1_default_name"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                tools:text="User_e34fc89f" />
-            <TextView
-                android:id="@+id/textViewPlayer1Mistakes"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/initial_mistakes_text"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                tools:text="Mistakes: 0/3" />
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/textViewPlayer1Name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    tools:text="User_e34fc89f" />
+                <TextView
+                    android:id="@+id/textViewPlayer1Mistakes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="@color/text_secondary"
+                    tools:text="Mistakes: 0/3" />
+            </LinearLayout>
         </LinearLayout>
         <!-- Central Score Section -->
         <LinearLayout
@@ -211,13 +228,14 @@
             android:background="@drawable/score_background"
             android:paddingHorizontal="20dp"
             android:paddingVertical="8dp"
-            android:layout_gravity="center_vertical">
+            android:layout_gravity="center_vertical"
+            android:layout_marginHorizontal="8dp">
             <TextView
                 android:id="@+id/textViewRoundScore"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/initial_round_score"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@color/primary"
                 tools:text="0 - 0" />
@@ -225,34 +243,53 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/round_score"
-                android:textSize="11sp"
+                android:textSize="8sp"
                 android:textColor="@color/text_secondary"
-                android:letterSpacing="0.1" />
+                android:letterSpacing="0.08" />
         </LinearLayout>
         <!-- Player 2 Section -->
         <LinearLayout
+            android:id="@+id/player2InfoContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="end">
-            <TextView
-                android:id="@+id/textViewPlayer2Name"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless">
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/player_2_default_name"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                tools:text="User_d4f63d05" />
-            <TextView
-                android:id="@+id/textViewPlayer2Mistakes"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/initial_mistakes_text"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                tools:text="Mistakes: 0/3" />
+                android:orientation="vertical"
+                android:gravity="end">
+                <TextView
+                    android:id="@+id/textViewPlayer2Name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    tools:text="User_d4f63d05" />
+                <TextView
+                    android:id="@+id/textViewPlayer2Mistakes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="@color/text_secondary"
+                    tools:text="Mistakes: 0/3" />
+            </LinearLayout>
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/imageViewPlayer2ProfilePic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/avatar_dummy"
+                app:civ_border_color="@color/secondary"
+                app:civ_border_width="1.5dp"
+                android:layout_marginStart="8dp"/>
+
         </LinearLayout>
     </LinearLayout>
 

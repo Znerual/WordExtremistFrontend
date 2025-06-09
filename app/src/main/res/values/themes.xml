@@ -73,6 +73,21 @@
         <item name="strokeWidth">0dp</item> <!-- Remove the outline stroke -->
         <item name="cornerRadius">20dp</item> <!-- Make it pill-shaped -->
     </style>
+
+
+    <style name="ProfileStatLabel" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_gravity">start|center_vertical</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+    <style name="ProfileStatValue" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_gravity">end|center_vertical</item>
+        <item name="android:fontFamily">@font/poppins_bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+
     <!-- Example Shape Appearances (Optional, but good for M3 consistency if needed) -->
     <!--
     <style name="ShapeAppearance.App.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    tools:context=".UserProfileDetailActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:titleTextColor="@color/text_primary"
+            app:title="Player Profile" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Identity Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:paddingTop="24dp"
+                    android:paddingBottom="16dp"
+                    android:paddingHorizontal="24dp">
+
+                    <TextView
+                        android:id="@+id/profileTimerWarning"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textSize="14sp"
+                        android:textColor="@color/timer_warning"
+                        android:visibility="gone"
+                        tools:visibility="visible"
+                        tools:text="Warning: 5 seconds left!"/>
+
+                    <de.hdodenhof.circleimageview.CircleImageView
+                        android:id="@+id/profileDetailImage"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        tools:src="@drawable/avatar_dummy"
+                        app:civ_border_color="@color/primary"
+                        app:civ_border_width="2dp"/>
+
+                    <TextView
+                        android:id="@+id/profileDetailUsername"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textSize="22sp"
+                        android:textColor="@color/text_primary"
+                        tools:text="MediumPhonePlayer"/>
+
+                    <TextView
+                        android:id="@+id/profileDetailCountry"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:fontFamily="@font/poppins"
+                        android:textSize="16sp"
+                        android:textColor="@color/text_secondary"
+                        tools:text="🇺🇸 United States"/>
+
+                    <TextView
+                        android:id="@+id/profileDetailMemberSince"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/poppins"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_hint"
+                        tools:text="Member since May 2024"/>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Stats Card -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stats"
+                android:layout_marginTop="24dp"
+                android:layout_marginStart="8dp"
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:fontFamily="@font/poppins_bold"/>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp">
+
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:padding="16dp">
+
+                    <!-- Level & XP -->
+                    <TextView style="@style/ProfileStatLabel" android:text="Level"/>
+                    <TextView style="@style/ProfileStatValue" android:id="@+id/statLevel" tools:text="12"/>
+                    <ProgressBar style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_columnSpan="2"
+                        android:layout_gravity="fill_horizontal"
+                        android:id="@+id/statXpBar"
+                        android:progress="60"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp"/>
+
+                    <!-- Total Words -->
+                    <TextView style="@style/ProfileStatLabel" android:text="Total Words"/>
+                    <TextView style="@style/ProfileStatValue" android:id="@+id/statWords" tools:text="4,512"/>
+
+                    <!-- TODO: Add Win/Loss and Avg Creativity once backend supports it -->
+
+                </GridLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Best Words Card -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Best Words"
+                android:layout_marginTop="24dp"
+                android:layout_marginStart="8dp"
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:fontFamily="@font/poppins_bold"/>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:id="@+id/bestWordsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp"
+                    tools:layout_height="100dp"/>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Loading Indicator -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="32dp"
+                android:visibility="gone"
+                tools:visibility="visible"/>
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
