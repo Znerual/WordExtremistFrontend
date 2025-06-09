@@ -15,12 +15,21 @@ import com.laurenz.wordextremist.views.WordWheelView
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
+import android.app.Activity
+import androidx.activity.OnBackPressedCallback
+import com.laurenz.wordextremist.ui.tutorial.TutorialManager
+import com.laurenz.wordextremist.ui.tutorial.TutorialStep
 
 
 class WordVaultActivity : AppCompatActivity() {
     private lateinit var binding: ActivityWordVaultBinding
     private var allWordEntries: List<WordVaultEntry> = emptyList()
 
+    private var isTutorialMode = false
+    private lateinit var tutorialManager: TutorialManager
+    companion object {
+        const val EXTRA_IS_TUTORIAL_MODE = "word_vault_tutorial_mode"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,15 +40,128 @@ class WordVaultActivity : AppCompatActivity() {
             finish()
         }
 
+        isTutorialMode = intent.getBooleanExtra(EXTRA_IS_TUTORIAL_MODE, false)
+
+        binding.toolbarWordVault.setNavigationOnClickListener {
+            // If in tutorial, back press should signal completion to the launcher
+            if (isTutorialMode) {
+                setResult(Activity.RESULT_OK)
+            }
+            finish()
+        }
+
+        // Handle the physical back button press during tutorial
+        if (isTutorialMode) {
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    tutorialManager.end(runListener = false)
+                    setResult(Activity.RESULT_OK)
+                    finish()
+                }
+            })
+        }
+
         // Set up listeners for both wheel and pedestal
         setupSelectionListeners()
 
-        // Hide main content until loaded
-        binding.pedestalArea.visibility = View.INVISIBLE
-        binding.wordWheelView.visibility = View.INVISIBLE
-        binding.emptyStateView.visibility = View.GONE
+        if (isTutorialMode) {
+            setupTutorialVault()
+        } else {
+            // Hide main content until loaded
+            binding.pedestalArea.visibility = View.INVISIBLE
+            binding.wordWheelView.visibility = View.INVISIBLE
+            binding.emptyStateView.visibility = View.GONE
+            loadVault()
+        }
 
-        loadVault()
+    }
+
+    private fun setupTutorialVault() {
+        // Use fake data for the tutorial with the CORRECT constructor signature.
+        val fakeEntries = listOf(
+            WordVaultEntry(
+                submittedWord = "Vibrant",
+                creativityScore = 95,
+                sentenceText = "The painting was quite dull and lacked any real emotion.",
+                promptText = "What's the opposite?"
+            ),
+            WordVaultEntry(
+                submittedWord = "Chaotic",
+                creativityScore = 88,
+                sentenceText = "The room was very tidy before the party.",
+                promptText = "What's the opposite?"
+            ),
+            WordVaultEntry(
+                submittedWord = "Colossal",
+                creativityScore = 85,
+                sentenceText = "It was a small mouse.",
+                promptText = "Make it bigger!"
+            ),
+            WordVaultEntry(
+                submittedWord = "Ancient",
+                creativityScore = 82,
+                sentenceText = "A new discovery was made yesterday.",
+                promptText = "Make it older!"
+            ),
+            WordVaultEntry(
+                submittedWord = "Swiftly",
+                creativityScore = 80,
+                sentenceText = "He walked slowly towards the door.",
+                promptText = "Make it faster!"
+            ),
+            WordVaultEntry(
+                submittedWord = "Furious",
+                creativityScore = 78,
+                sentenceText = "She was slightly annoyed by his comment.",
+                promptText = "Make it more EXTREME!"
+            )
+        )
+        allWordEntries = fakeEntries
+
+        // Populate UI with fake data (this part was already correct)
+        val pedestalWords = fakeEntries.take(3)
+        val wheelWords = fakeEntries.subList(3, fakeEntries.size)
+        populatePedestal(pedestalWords)
+        populateWordWheel(wheelWords)
+
+        // Make views visible immediately
+        binding.textViewVaultStatus.visibility = View.GONE
+        binding.emptyStateView.visibility = View.GONE
+        binding.pedestalArea.visibility = View.VISIBLE
+        binding.wordWheelView.visibility = View.VISIBLE
+
+        // Start the tutorial sequence after the layout is drawn
+        binding.root.post {
+            startTutorialSequence()
+        }
+    }
+
+    private fun startTutorialSequence() {
+        val steps = listOf(
+            TutorialStep(null, "Welcome to your Word Vault! This is where your best and most creative words are saved.") { true },
+
+            TutorialStep(R.id.pedestalArea, "Your top 3 highest-scoring words are displayed here on the pedestal, like trophies!") { true },
+
+            TutorialStep(R.id.pedestalCard1, "Tap your best word to see more details about it.") { manager ->
+                // The user click will trigger handlePedestalClick. We need that click to advance the tutorial.
+                // We'll modify handlePedestalClick for this.
+                true
+            },
+
+            TutorialStep(R.id.detailsDisplayArea, "This card shows the original sentence and prompt for the selected word.") { true },
+
+            TutorialStep(R.id.wordWheelView, "Your other creative words appear on this wheel. Spin it to find and select them.") { true },
+
+            TutorialStep(null, "That's your Word Vault! Tap anywhere to return to the main menu.") { manager ->
+                setResult(Activity.RESULT_OK) // Signal completion
+                manager.end() // Clean up the overlay
+                finish()      // Go back to LauncherActivity
+                false
+            }
+        )
+
+        tutorialManager = TutorialManager(this, steps)
+        tutorialManager.start()
     }
 
     private fun loadVault() {

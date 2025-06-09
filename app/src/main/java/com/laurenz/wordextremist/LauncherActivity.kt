@@ -38,6 +38,8 @@ import androidx.core.content.edit
 import com.bumptech.glide.Glide
 import com.laurenz.wordextremist.model.UserPublic
 import com.laurenz.wordextremist.network.ApiClient
+import com.laurenz.wordextremist.ui.tutorial.TutorialManager
+import com.laurenz.wordextremist.ui.tutorial.TutorialStep
 
 class LauncherActivity : AppCompatActivity() {
 
@@ -53,6 +55,15 @@ class LauncherActivity : AppCompatActivity() {
     private val PREF_USER_WORDS_COUNT = "userWordsCount"
     private val PREF_USER_PROFILE_PIC_URL = "userProfilePicUrl"
     private val PREF_USER_DB_ID = "userDbId" // To store user's database ID
+    private val PREF_TUTORIAL_COMPLETED = "tutorialCompleted"
+
+    private lateinit var tutorialManager: TutorialManager
+    private lateinit var tutorialGameLauncher: ActivityResultLauncher<Intent>
+    private lateinit var tutorialProfileLauncher: ActivityResultLauncher<Intent>
+    private lateinit var tutorialVaultLauncher: ActivityResultLauncher<Intent>
+    companion object {
+        var isTutorialInProgress = false
+    }
 
     private lateinit var editProfileResultLauncher: ActivityResultLauncher<Intent>
 
@@ -106,13 +117,6 @@ class LauncherActivity : AppCompatActivity() {
         setupClickListeners()
         loadCachedProfileInfo() // Load cached info first
 
-        editProfileResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                Log.d("LauncherActivity", "Returned from EditProfileActivity with success. Refreshing profile.")
-                // The profile was updated, so re-fetch the latest data to update the UI
-                checkAuthAndLoadProfile()
-            }
-        }
 
         // Setup for animations: Get parent dimensions once layout is complete
         binding.root.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -155,6 +159,113 @@ class LauncherActivity : AppCompatActivity() {
             }
         })
         Log.d("LauncherActivity", "onCreate: OnGlobalLayoutListener attached.")
+
+        // Tutorial
+        tutorialGameLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            // This is called when the scripted game (MainActivity) finishes.
+            // We can now proceed to the next tutorial step.
+            showTutorialOverlay()
+            tutorialManager.advance()
+        }
+
+        // Register launchers for other activities in the tutorial
+        tutorialProfileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            showTutorialOverlay()
+            tutorialManager.advance()
+        }
+        tutorialVaultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            showTutorialOverlay()
+            tutorialManager.advance()
+        }
+
+        checkAndStartTutorial()
+
+    }
+
+    private fun hideTutorialOverlay() {
+        findViewById<View?>(R.id.tutorialOverlayView)?.visibility = View.GONE
+    }
+    private fun showTutorialOverlay() {
+        findViewById<View?>(R.id.tutorialOverlayView)?.visibility = View.VISIBLE
+    }
+
+
+    private fun checkAndStartTutorial() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val tutorialCompleted = prefs.getBoolean(PREF_TUTORIAL_COMPLETED, false)
+
+        if (!tutorialCompleted && !isTutorialInProgress || true) {
+            binding.root.post {
+                startTutorial()
+            }
+        }
+    }
+
+    private fun startTutorial() {
+        isTutorialInProgress = true
+
+        val steps = listOf(
+            // Step 0: Profile Highlight. No async work, so return true.
+            TutorialStep(R.id.profileSection, "Welcome! This is your profile. Tap here to edit your name and see stats.") { true },
+
+            // Step 1: Language Highlight. No async work, so return true.
+            TutorialStep(R.id.languageSection, "You can choose the language for your word battles here.") { true },
+
+            // Step 2: Start Button. No async work, so return true.
+            TutorialStep(R.id.buttonStartMatch, "Ready? Let's play a quick practice round. Tap here to begin!") { true },
+
+            // Step 3: Text Page to launch game. This IS async, so return false.
+            TutorialStep(null, "The goal is simple:\n\n1. Find a word that fits the prompt...\n\nTap anywhere to start.") { manager ->
+                hideTutorialOverlay()
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    putExtra(MainActivity.EXTRA_IS_TUTORIAL_MODE, true)
+                }
+                tutorialGameLauncher.launch(intent)
+                false // Manager must WAIT for the activity to return.
+            },
+
+            // --- NEW TEXT PAGE 2: EXPLAIN THE PROFILE SCREEN ---
+            TutorialStep(
+                targetViewId = null,
+                explanationText = "Great job! Let's take a closer look at your profile, where you can change your name and see your stats.\n\nTap anywhere to continue.",
+            ) {
+                manager ->
+                hideTutorialOverlay() // Hide before launching
+                val intent = Intent(this, EditProfileActivity::class.java)
+                tutorialProfileLauncher.launch(intent)
+                false // <- IMPORTANT: Action handles flow
+            },
+            TutorialStep(
+                targetViewId = R.id.buttonTreasureChest,
+                explanationText = "The Word Vault saves your best and most unique words. Tap to explore it!",
+            ) {
+                hideTutorialOverlay()
+                val intent = Intent(this, WordVaultActivity::class.java).apply {
+                    putExtra(WordVaultActivity.EXTRA_IS_TUTORIAL_MODE, true)
+                }
+
+                tutorialVaultLauncher.launch(intent)
+                false // <- IMPORTANT: Action handles flow
+            },
+            TutorialStep(
+                targetViewId = null, // Final message is also a text page now
+                explanationText = "You're all set! Enjoy the game.\n\nTap anywhere to finish the tutorial."
+            ) { true }
+        )
+
+        tutorialManager = TutorialManager(this, steps)
+        tutorialManager.onTutorialFinishedListener = {
+            // This code now runs when the tutorial ends
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit {
+                putBoolean(PREF_TUTORIAL_COMPLETED, true)
+                apply()
+            }
+            isTutorialInProgress = false
+            Log.d("LauncherActivity", "Tutorial finished and state reset.")
+        }
+
+        tutorialManager.start()
     }
 
     @SuppressLint("HardwareIds")
@@ -523,6 +634,13 @@ class LauncherActivity : AppCompatActivity() {
         if (isDestroyed || isFinishing) {
             Log.w("LauncherActivity", "onResume: Activity is destroyed or finishing. Bailing out of animation start.")
             return
+        }
+
+        if (isTutorialInProgress) {
+            Log.d("LauncherActivity", "Tutorial is in progress, showing overlay and skipping auth check.")
+            // If we are returning from another activity, the overlay needs to be shown again.
+            showTutorialOverlay()
+            return // Don't proceed with normal onResume logic
         }
 
         checkAuthAndLoadProfile()

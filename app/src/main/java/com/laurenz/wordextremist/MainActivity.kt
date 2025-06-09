@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.SpannableString
 import android.text.Spanned
+import android.text.TextWatcher
 import android.text.method.ScrollingMovementMethod
 import android.text.style.ForegroundColorSpan
 import android.util.Log
@@ -42,9 +43,12 @@ import com.laurenz.wordextremist.model.GameState
 import com.laurenz.wordextremist.model.PlayerTurn
 import com.laurenz.wordextremist.network.GameWebSocketClient
 import com.laurenz.wordextremist.model.RoundEndReason
+import com.laurenz.wordextremist.ui.tutorial.TutorialManager
+import com.laurenz.wordextremist.ui.tutorial.TutorialStep
 import okhttp3.Response
 import org.json.JSONException
 import org.json.JSONObject
+
 
 // Implement the WebSocket listener interface
 class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListenerCallback {
@@ -61,6 +65,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var timeLeftInMillis: Long = 0L
     private var turnEndTimeMillis: Long = 0L // Timestamp when the current turn should end
     private var isTimerPausedByActivity: Boolean = false
+    private var opponentVisualTimer: CountDownTimer? = null
 
     private lateinit var userProfileLauncher: ActivityResultLauncher<Intent>
 
@@ -75,8 +80,15 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var currentGameLanguage: String = "en"
     private var ownProfilePicUrl: String? = null
     private var opponentProfilePicUrl: String? = null
-    // Removed currentBackendToken
-    // Removed DEBUG constants
+
+    // Tutorial
+    private var isTutorialMode = false
+    private lateinit var tutorialManager: TutorialManager
+    private var tutorialTextWatcher: TextWatcher? = null
+
+    companion object {
+        const val EXTRA_IS_TUTORIAL_MODE = "is_tutorial_mode"
+    }
 
     private enum class RoundOutcome { WIN, LOSS, DRAW }
     private enum class MistakeType { LOCAL, OPPONENT }
@@ -86,7 +98,33 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Removed authViewModel initialization
+        isTutorialMode = intent.getBooleanExtra(EXTRA_IS_TUTORIAL_MODE, false)
+        if (isTutorialMode) {
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    // When back is pressed during tutorial game, just end this part.
+                    // This signals to LauncherActivity that this step is "done".
+                    Log.d("MainActivityTutorial", "Back pressed during tutorial, finishing activity.")
+
+                    tutorialTextWatcher?.let {
+                        binding.editTextWordInput.removeTextChangedListener(it)
+                        tutorialTextWatcher = null
+                    }
+
+                    tutorialManager.end(runListener = false) // Clean up the overlay
+                    setResult(Activity.RESULT_CANCELED) // Or RESULT_OK, depending on desired flow
+                    finish()
+                }
+            })
+
+            // In tutorial mode, we don't connect to the websocket.
+            // We set up a fake game state.
+            setupTutorialGame()
+            binding.root.post{
+                startTutorialSequence()
+            }
+            return // Skip the rest of the normal onCreate logic
+        }
 
         // --- Get Game Info from Intent ---
         ownUserId = intent.getIntExtra(MatchmakingActivity.EXTRA_OWN_USER_ID, -1)
@@ -145,6 +183,9 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         updatePlaceholdersUI() // Setup default text
         setupBackButtonHandler()
         setupPlayerInfoClickListeners()
+        setupEmojiButtonListeners()
+        setupInputListeners()
+        setupSentenceCardToggleListener()
 
 
 
@@ -170,6 +211,125 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
         }
     }
+
+    private fun setupTutorialGame() {
+        // 1. Initialize a fake, scripted game state
+        val p1 = PlayerState("tutorial_p1", "You", 0, 0)
+        val p2 = PlayerState("tutorial_p2", "RivalBot", 0, 0)
+        gameState = GameState(
+            player1 = p1,
+            player2 = p2,
+            language = "en",
+            PlayerTurn.PLAYER_1, // Start with player's turn
+            1, 3,
+            currentSentence = "The painting was quite dull and lacked any real emotion.",
+            currentPrompt = "What's the opposite?",
+            wordToReplace = "dull",
+            isWaitingForOpponent = false
+        )
+        gameState.resetRoundMistakesAndWords()
+
+
+        fadeInGameUI() // Reuse your fade-in animation
+        updateUI()
+
+    }
+
+    private fun startTutorialSequence() {
+        val gameSteps = listOf(
+            // Step 0
+            TutorialStep(R.id.promptCard, "This is the prompt. Find a word matching it.") { true },
+            // Step 1
+            TutorialStep(R.id.sentenceCard, "This sentence gives context. The word to focus on is highlighted.") { true },
+            // Step 2: Ask user to type
+            TutorialStep(R.id.editTextWordInput, "Type 'vibrant' in the box.") { manager ->
+                binding.buttonSubmit.isEnabled = false
+                showKeyboard()
+                tutorialTextWatcher = object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        Log.d("TutorialManager", "Text changed: ${s.toString()}")
+                        if (s.toString().trim().equals("vibrant", ignoreCase = true)) {
+                            tutorialTextWatcher = null
+                            manager.advance()
+                        }
+                    }
+                }
+                binding.editTextWordInput.addTextChangedListener(tutorialTextWatcher)
+                false
+            },
+            // Step 3: Ask user to submit
+            TutorialStep(R.id.buttonSubmit, "Perfect! Now tap SUBMIT to play your word.") { manager ->
+//                tutorialTextWatcher?.let {
+//                    binding.editTextWordInput.removeTextChangedListener(it)
+//                    tutorialTextWatcher = null // Clear the reference
+//                }
+//
+//                binding.buttonSubmit.isEnabled = true
+//                hideKeyboard()
+                handleTutorialSubmit(manager)
+                false
+
+            },
+            // Step 4: Acknowledge submission (This step is shown by handleTutorialSubmit)
+            TutorialStep(null, "Great! Your word was played. Now, let's see the words list.") { true },
+            // Step 5: Ask user to tap sentence card
+            TutorialStep(R.id.sentenceCard, "Tap the sentence card to see all words played in this round.") { manager ->
+                binding.sentenceCard.performClick()
+                // Wait for view to appear, then go to next step
+                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 300)
+                false
+                                                                                                            },
+            // Step 6: Explain the words card
+            TutorialStep(R.id.wordsPlayedCard, "This list shows all valid words. Now, watch the opponent's turn.") { manager ->
+                // Simulate opponent play
+                Handler(Looper.getMainLooper()).postDelayed({
+                    gameState.recordValidWord("lifeless", PlayerTurn.PLAYER_2)
+                    animateWordToBox("lifeless", binding.textViewPlayer2PlayedWords, false)
+                    updateUI()
+                    Toast.makeText(this, "RivalBot played 'lifeless'!", Toast.LENGTH_SHORT).show()
+                    manager.advance() // Go to Step 7
+                }, 1500)
+                false
+            },
+            // Step 7: Explain toggling the card off
+            TutorialStep(R.id.sentenceCard, "You can tap the sentence card again to hide the list.") { manager ->
+                binding.sentenceCard.performClick()
+                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 300)
+                false
+            },
+            // Step 8: Final step for this activity
+            TutorialStep(null, "Practice complete! Tap anywhere to continue.") { manager ->
+                setResult(Activity.RESULT_OK)
+                manager.end()
+                finish()
+                false
+            }
+        )
+
+        tutorialManager = TutorialManager(this, gameSteps)
+        tutorialManager.start()
+    }
+
+    // This function is now much simpler
+    private fun handleTutorialSubmit(manager: TutorialManager) {
+        val enteredWord = binding.editTextWordInput.text.toString().trim().lowercase()
+        if (enteredWord == "vibrant") {
+            hideKeyboard()
+            gameState.recordValidWord("vibrant", PlayerTurn.PLAYER_1)
+            animateWordToBox("vibrant", binding.textViewPlayer1PlayedWords, true)
+            updateUI()
+
+            // MANUALLY JUMP to the next part of the tutorial (Step 4)
+            manager.advance()
+
+        } else {
+            Toast.makeText(this, "Please type 'vibrant' and tap SUBMIT.", Toast.LENGTH_LONG).show()
+            // Do nothing, user must try again by tapping the submit button
+        }
+    }
+
 
     private fun setupPlayerInfoClickListeners() {
         binding.player1InfoContainer.setOnClickListener {
@@ -199,9 +359,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private fun setupGameUIAndListeners() {
         // This function is called AFTER the entry animation.
         Log.d("MainActivity", "Setting up game UI listeners and fading in UI.")
-        setupEmojiButtonListeners()
-        setupInputListeners()
-        setupSentenceCardToggleListener()
         fadeInGameUI()
 
 
@@ -246,6 +403,50 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             }
         } catch (e: JSONException) {
             Log.e("MainActivity", "Error parsing buffered initial JSON payload", e)
+        }
+    }
+
+    private fun startOpponentTurnVisuals() {
+        // If a visual timer is already running for the opponent, do nothing.
+        if (opponentVisualTimer != null) return
+
+        val turnDurationMs = gameState.turnDurationSeconds * 1000L
+
+        // Start the sand animation, making it look like a full timer
+        binding.tricklingSandView.startTimerEffect(gameState.turnDurationSeconds.toFloat(), gameState.turnDurationSeconds.toFloat())
+
+        // Create a new timer that only updates the UI
+        opponentVisualTimer = object : CountDownTimer(turnDurationMs, COUNTDOWN_INTERVAL_MS) {
+            override fun onTick(millisUntilFinished: Long) {
+                if (!this@MainActivity.isActive) {
+                    cancel()
+                    return
+                }
+                // Update the sand fill level based on time elapsed
+                val timeElapsed = turnDurationMs - millisUntilFinished
+                val progress = timeElapsed.toFloat() / turnDurationMs.toFloat()
+                binding.tricklingSandView.setTargetFillLevelCap(progress.coerceIn(0f, 1f))
+            }
+
+            override fun onFinish() {
+                if (!this@MainActivity.isActive) return
+                // Let the sand animation fill completely when the visual timer finishes
+                binding.tricklingSandView.stopTimerEffectAndFill()
+                opponentVisualTimer = null // Mark as finished
+            }
+        }.start()
+        Log.d("MainActivityTimer", "Started OPPONENT VISUAL timer.")
+    }
+
+    /**
+     * Stops and resets the opponent's visual timer and sand animation.
+     */
+    private fun cancelOpponentTurnVisuals() {
+        if (opponentVisualTimer != null) {
+            opponentVisualTimer?.cancel()
+            opponentVisualTimer = null
+            binding.tricklingSandView.cancelTimerEffect() // This resets and hides the sand
+            Log.d("MainActivityTimer", "Cancelled OPPONENT VISUAL timer.")
         }
     }
 
@@ -1016,7 +1217,12 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     }
 
     override fun onResume() {
-        super.onResume()
+        if(isTutorialMode) {
+            super.onResume() // Call super, but skip your connection logic
+            Log.d("MainActivity", "onResume in Tutorial Mode")
+            return
+        }
+        super.onResume() // Normal onResume
         Log.d("MainActivityTimer", "onResume. Timer paused by activity: $isTimerPausedByActivity. Game started: $gameHasActuallyStarted")
 
         // If gameHasActuallyStarted is false, it means onCreate didn't finish its animation sequence.
@@ -1058,6 +1264,9 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             // For safety, try to proceed if WS is already setup by onCreate.
             Log.w("MainActivity", "onResume: Entry animation seems finished, but game not marked as started. Attempting to setup UI/Listeners.")
             if (gameWebSocketClient != null) { // If WS client was initialized
+                setupEmojiButtonListeners()
+                setupInputListeners()
+                setupSentenceCardToggleListener()
                 setupGameUIAndListeners() // Attempt to setup game UI.
                 if (initialGamePayload != null) { // Process any buffered payload
                     processBufferedInitialPayload(initialGamePayload!!)
@@ -1302,6 +1511,12 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
     // --- Turn Handling ---
     private fun handleTurnStart() {
+        if (isTutorialMode) {
+            Log.d("MainActivityTimer", "Tutorial Mode: Skipping timer start.")
+            updateUI() // Still update the UI
+            return
+        }
+
         if (gameState.isGameOver() || gameState.isWaitingForOpponent || gameState.currentPlayerTurn != PlayerTurn.PLAYER_1) {
             cancelTimer() // Not our turn, ensure timer is off
             updateUI()
@@ -1402,20 +1617,43 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.buttonSubmit.isEnabled = canInput
 
         if (canInput) {
+            // It's OUR turn to play
+            binding.inputCard.visibility = View.VISIBLE
+            binding.waitingForOpponentLayout.visibility = View.GONE
+            binding.editTextWordInput.isEnabled = true
+            binding.buttonSubmit.isEnabled = true
             binding.editTextWordInput.hint = getString(R.string.word_input_hint)
-            // Don't clear text if it's already focused and user might be typing
-            // if (!binding.editTextWordInput.isFocused) {
-            //     binding.editTextWordInput.text.clear() // Consider if needed, server response handles clearing now
-            // }
-        } else if (gameState.isGameOver()) {
-            binding.editTextWordInput.hint = "Game Over"
-            binding.editTextWordInput.text.clear()
-        } else if (gameState.isWaitingForOpponent) {
-            binding.editTextWordInput.hint = "Waiting for opponent..."
-            binding.editTextWordInput.text.clear()
-        } else { // Not our turn, not waiting, not game over => Opponent's turn
-            binding.editTextWordInput.hint = "Opponent's turn"
-            binding.editTextWordInput.text.clear()
+
+            // Our turn starts, so ensure any opponent visuals are cancelled.
+            cancelOpponentTurnVisuals()
+        } else  {
+            // It's NOT our turn (or the game is inactive)
+            binding.inputCard.visibility = View.GONE
+            binding.waitingForOpponentLayout.visibility = View.VISIBLE
+            binding.editTextWordInput.isEnabled = false
+            binding.buttonSubmit.isEnabled = false
+            hideKeyboard()
+
+            // Display the correct waiting message
+            when {
+                gameState.isGameOver() -> {
+                    binding.waitingTextView.text = "Game Over"
+                    binding.waitingProgressBar.visibility = View.GONE
+                    cancelOpponentTurnVisuals()
+                }
+                gameState.isWaitingForOpponent -> {
+                    // This covers states like waiting for the game to start or between rounds
+                    binding.waitingTextView.text = "Waiting for opponent..."
+                    binding.waitingProgressBar.visibility = View.VISIBLE
+                    cancelOpponentTurnVisuals()
+                }
+                else -> {
+                    // This is the main case: It's the opponent's turn in an active round
+                    binding.waitingTextView.text = "Waiting for ${gameState.player2.name}..."
+                    binding.waitingProgressBar.visibility = View.VISIBLE
+                    startOpponentTurnVisuals()
+                }
+            }
         }
 
         // Hide keyboard if it's not the local player's turn to type
@@ -1438,6 +1676,11 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     }
 
     private fun startTurnTimerInternal() {
+        if (isTutorialMode) {
+            Log.d("MainActivityTimer", "Tutorial Mode: Skipping internal timer logic.")
+            return
+        }
+
         countDownTimer?.cancel() // Cancel any existing one first
         if (timeLeftInMillis <= 0) { // If no time left, trigger finish immediately
             handleTimerFinish()
@@ -1488,6 +1731,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     }
 
     private fun cancelTimer() {
+        if (isTutorialMode) return
         countDownTimer?.cancel()
         countDownTimer = null
         binding.textViewTimer.text = "Time: --s"

@@ -19,7 +19,7 @@
     <color name="mistake_local_color">#FF6F00</color> <!-- A strong Orange/Amber for local player mistake (Material Amber 800) -->
     <color name="mistake_opponent_color">#FF9800</color> <!-- A slightly lighter Orange for opponent mistake (Material Orange 500), or could be same as local -->
 
-
+    <color name="tutorial_overlay_background">#CC000000</color>
     <!-- Primary Colors -->
     <color name="primary">#FF6B35</color>           <!-- Vibrant orange - energetic and creative -->
     <color name="primary_variant">#E55A2B</color>   <!-- Darker orange variant -->
