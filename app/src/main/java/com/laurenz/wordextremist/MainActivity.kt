@@ -7,6 +7,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.app.Activity
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.content.Context
@@ -29,12 +30,16 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback // For newer back press handling
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.os.postDelayed
 import com.bumptech.glide.Glide
 import com.laurenz.wordextremist.databinding.ActivityMainBinding
+import com.laurenz.wordextremist.model.GameState
+import com.laurenz.wordextremist.model.PlayerTurn
 import com.laurenz.wordextremist.network.GameWebSocketClient
 import com.laurenz.wordextremist.model.RoundEndReason
 import okhttp3.Response
@@ -51,10 +56,13 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private var isEntryAnimationPlaying = true
 
     // Timer constants and variables remain the same
-    private val TURN_DURATION_MS = 30000L
     private val COUNTDOWN_INTERVAL_MS = 1000L
     private var countDownTimer: CountDownTimer? = null
-    private var timeLeftInMillis: Long = TURN_DURATION_MS
+    private var timeLeftInMillis: Long = 0L
+    private var turnEndTimeMillis: Long = 0L // Timestamp when the current turn should end
+    private var isTimerPausedByActivity: Boolean = false
+
+    private lateinit var userProfileLauncher: ActivityResultLauncher<Intent>
 
     // Removed authViewModel
     private var gameWebSocketClient: GameWebSocketClient? = null
@@ -112,6 +120,22 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
         Log.i("MainActivity", "Received Game ID: $currentGameId")
 
+        userProfileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            // This lambda is called when UserProfileDetailActivity finishes and returns a result
+            Log.d("MainActivity", "ActivityResult: Result code: ${result.resultCode}")
+            if (result.resultCode == Activity.RESULT_OK) {
+                // This means UserProfileDetailActivity finished due to its timer running out (as we set RESULT_OK there)
+                Log.d("MainActivityTimer", "Returned from UserProfileDetailActivity with RESULT_OK (timer likely finished).")
+            } else if (result.resultCode == Activity.RESULT_CANCELED) {
+                // This means the user pressed back or used the toolbar's up navigation
+                Log.d("MainActivityTimer", "Returned from UserProfileDetailActivity with RESULT_CANCELED (user likely pressed back).")
+            }
+            // Regardless of the result code, onResume will be called next, and it handles
+            // the timer state. So, the primary purpose here is logging or specific actions
+            // based on *why* the other activity closed, if needed.
+            // For your current timer logic, the crucial part happens in onResume.
+        }
+
         // --- Remove All Play Games SDK Initialization and Auth Code Request ---
         // The entire block from PlayGamesSdk.initialize down to the end of its callbacks is removed.
         // Also remove the standalone requestServerSideAccess() call.
@@ -120,9 +144,9 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         initializePlaceholderGame() // Initialize with placeholders
         updatePlaceholdersUI() // Setup default text
         setupBackButtonHandler()
+        setupPlayerInfoClickListeners()
 
 
-        // Initialize other UI elements (can be updated later by WS messages)
 
 
         gameWebSocketClient = GameWebSocketClient(currentGameId!!, this, this)
@@ -145,7 +169,30 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         }
     }
 
+    private fun setupPlayerInfoClickListeners() {
+        binding.player1InfoContainer.setOnClickListener {
+            launchUserProfileDetail(gameState.player1.serverId.toInt())
+        }
 
+        binding.player2InfoContainer.setOnClickListener {
+            launchUserProfileDetail(gameState.player2.serverId.toInt())
+        }
+    }
+
+    private fun launchUserProfileDetail(userIdToView: Int) {
+        if (userIdToView == -1) {
+            Toast.makeText(this, "Player info not available yet.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(this, UserProfileDetailActivity::class.java).apply {
+            putExtra(UserProfileDetailActivity.EXTRA_USER_ID, userIdToView)
+            putExtra(UserProfileDetailActivity.EXTRA_TURN_END_TIME_MILLIS, turnEndTimeMillis)
+
+        }
+        // Use the launcher to start the activity
+        userProfileLauncher.launch(intent)
+        Log.d("MainActivity", "Launched UserProfileDetailActivity using new API.")
+    }
 
     private fun setupGameUIAndListeners() {
         // This function is called AFTER the entry animation.
@@ -155,16 +202,12 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         setupSentenceCardToggleListener()
         fadeInGameUI()
 
-        // If initialGamePayload was null AND we are connected,
-        // it means onOpen was called but game_start/reconnect hasn't arrived yet.
-        // If it already arrived and was processed by processBufferedInitialPayload,
-        // then updateUI and handleTurnStart would have been called from there.
-        // If we are connected and game_state still implies waiting for opponent, UI will reflect that.
+
         if (gameWebSocketClient?.isConnected() == true && initialGamePayload == null) {
             // This state means we're connected, animation done, but no definitive game start message yet.
             // updateUI() will show "Waiting for game start..." based on current gameState
             updateUI() // Ensure UI reflects the current state (likely "Waiting for server...")
-            // handleTurnStart() // Don't call this yet, wait for server's turn signal
+
         }
     }
 
@@ -477,6 +520,19 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.buttonSubmit.isEnabled = false
         setEmojiButtonsEnabled(false)
         binding.tricklingSandView.resetAndHide()
+
+        Glide.with(this)
+            .load(ownProfilePicUrl)
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.imageViewPlayer1ProfilePic)
+
+        Glide.with(this)
+            .load(opponentProfilePicUrl)
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.imageViewPlayer2ProfilePic)
+
     }
 
 
@@ -666,6 +722,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private fun handleNewRoundStarted(payload: JSONObject) {
         Log.i("MainActivity_WS", "Handling new_round_started: ${payload.toString(2)}")
         cancelTimer() // Stop timer from the previous round
+        binding.tricklingSandView.resetAndHide() // Reset sand view for new round
 
         val prevRoundWinnerId = payload.optString("round_winner_id", null)
         val prevRoundEndReasonString = payload.optString("previous_round_end_reason", RoundEndReason.UNKNOWN.value)
@@ -966,6 +1023,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
     override fun onResume() {
         super.onResume()
+        Log.d("MainActivityTimer", "onResume. Timer paused by activity: $isTimerPausedByActivity. Game started: $gameHasActuallyStarted")
+
         // If gameHasActuallyStarted is false, it means onCreate didn't finish its animation sequence.
         // The animation sequence itself will call connectWebSocketAndSetupGame.
         // If gameHasActuallyStarted is true, it implies game was running, and then paused.
@@ -974,9 +1033,14 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             // If WebSocket was connected, it might still be or needs re-establishing by user action
             // or automatic reconnect logic (not implemented here).
             // For now, just update UI. The game might be in a waiting state.
-            if (gameWebSocketClient?.isConnected() == true) {
-                updateUI() // Refresh UI based on current local state
-                handleTurnStart() // Re-evaluate if timer needs to run
+            if (isTimerPausedByActivity && gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 && !gameState.isGameOver()) {
+                // Timer was paused by onPause, and it's still our turn.
+                Log.d("MainActivityTimer", "Resuming timer logic in onResume.")
+                handleTurnStart() // This will recalculate remaining time and restart timer
+            } else if (gameWebSocketClient?.isConnected() == true) {
+                // If timer wasn't paused by us, or it's not our turn, just update UI
+                updateUI()
+                // if it became our turn while paused, server message should trigger handleTurnStart via onMessageReceived
             } else if (gameWebSocketClient != null) { // client exists but not connected
                 Log.w("MainActivity", "onResume: WebSocket client exists but not connected. Attempting to reconnect.")
                 // Consider adding a "Reconnecting..." UI state
@@ -993,7 +1057,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 Toast.makeText(this, "Connection error. Please restart.", Toast.LENGTH_LONG).show()
                 navigateToLauncherClearTask()
             }
-        }else if (!isEntryAnimationPlaying && !gameHasActuallyStarted) {
+        } else if (!isEntryAnimationPlaying && !gameHasActuallyStarted) {
             // This case means onCreate finished, animation callback was supposed to run
             // but didn't set gameHasActuallyStarted. This might indicate an issue
             // if the animation callback didn't fire or complete properly.
@@ -1247,7 +1311,28 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         if (!gameHasActuallyStarted) return
         if (gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 && !gameState.isWaitingForOpponent && !gameState.isGameOver()) {
             updateUI() // Ensure UI reflects it's our turn
-            startNewTurnTimer()
+
+            val currentTurnDurationMs = gameState.turnDurationSeconds * 1000L // Use server value
+
+            if (isTimerPausedByActivity && turnEndTimeMillis > 0) {
+                val currentTime = System.currentTimeMillis()
+                val newTimeLeft = turnEndTimeMillis - currentTime
+                if (newTimeLeft > 0) {
+                    timeLeftInMillis = newTimeLeft // Restore from where it left off
+                    Log.d("MainActivityTimer", "Resuming timer. Time left: $timeLeftInMillis")
+                    startTurnTimerInternal() // Use a new internal function
+                } else {
+                    timeLeftInMillis = 0 // Time has already passed
+                    Log.d("MainActivityTimer", "Timer expired while paused. Time left: 0")
+                    handleTimerFinish() // Trigger timeout logic immediately
+                }
+                isTimerPausedByActivity = false // Reset flag
+            } else if (!isTimerActive()) { // Only start a new timer if one isn't already running (or paused)
+                timeLeftInMillis = currentTurnDurationMs
+                turnEndTimeMillis = System.currentTimeMillis() + currentTurnDurationMs
+                Log.d("MainActivityTimer", "Starting new timer. Ends at: $turnEndTimeMillis")
+                startTurnTimerInternal()
+            }
             showKeyboard()
 
         } else {
@@ -1281,6 +1366,19 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.textViewPlayer1Mistakes.text = "Mistakes: ${gameState.player1.mistakesInCurrentRound}/3"
         binding.textViewPlayer2Name.text = gameState.player2.name
         binding.textViewPlayer2Mistakes.text = "Mistakes: ${gameState.player2.mistakesInCurrentRound}/3"
+
+        Glide.with(this)
+            .load(ownProfilePicUrl) // Assuming these URLs are static for the game duration
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.imageViewPlayer1ProfilePic)
+
+        Glide.with(this)
+            .load(opponentProfilePicUrl)
+            .placeholder(R.drawable.avatar_dummy)
+            .error(R.drawable.avatar_dummy)
+            .into(binding.imageViewPlayer2ProfilePic)
+
 
         // Round Score
         binding.textViewRoundScore.text = "${gameState.player1.score} - ${gameState.player2.score}"
@@ -1334,71 +1432,69 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
     private fun startNewTurnTimer() {
         countDownTimer?.cancel()
         binding.tricklingSandView.resetAndHide() // Ensure clean state
-        timeLeftInMillis = TURN_DURATION_MS
-        binding.textViewTimer.setTextColor(ContextCompat.getColor(this, R.color.timer_default_color)) // Use this@MainActivity context
+        val currentTurnDurationMs = gameState.turnDurationSeconds * 1000L
+        timeLeftInMillis = currentTurnDurationMs
+        turnEndTimeMillis = System.currentTimeMillis() + currentTurnDurationMs // Set the absolute end time
+        Log.d("MainActivityTimer", "Starting NEW turn timer. Ends at: $turnEndTimeMillis")
+        startTurnTimerInternal()
+    }
 
-        binding.tricklingSandView.startTimerEffect(TURN_DURATION_MS / 1000f) // Pass duration in seconds
+    private fun startTurnTimerInternal() {
+        countDownTimer?.cancel() // Cancel any existing one first
+        if (timeLeftInMillis <= 0) { // If no time left, trigger finish immediately
+            handleTimerFinish()
+            return
+        }
+
+        binding.textViewTimer.setTextColor(ContextCompat.getColor(this, R.color.timer_default_color))
+        val totalDurationForFullTurnSeconds = gameState.turnDurationSeconds.toFloat()
+        val actualTimeLeftSeconds = timeLeftInMillis / 1000f
+        binding.tricklingSandView.startTimerEffect(totalDurationForFullTurnSeconds, actualTimeLeftSeconds)
 
         countDownTimer = object : CountDownTimer(timeLeftInMillis, COUNTDOWN_INTERVAL_MS) {
             override fun onTick(millisUntilFinished: Long) {
-                if (!this@MainActivity.isActive) { // Check activity state
+                if (!this@MainActivity.isActive) {
                     cancel()
                     return
                 }
-                timeLeftInMillis = millisUntilFinished
-                val secondsLeft = (millisUntilFinished + 999) / 1000 // Round up for display
+                timeLeftInMillis = millisUntilFinished // Update the remaining time
+                val secondsLeft = (millisUntilFinished + 999) / 1000
                 binding.textViewTimer.text = "Time: ${secondsLeft}s"
+                // ... (color change logic for timer text) ...
 
-                if (secondsLeft > 10) {
-                    binding.textViewTimer.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.timer_default))
-                } else if (secondsLeft > 3){
-                    binding.textViewTimer.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.timer_warning))
-                } else {
-                    binding.textViewTimer.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.timer_critical))
-                }
-
-                val elapsedTime = TURN_DURATION_MS - millisUntilFinished
-                val progress = elapsedTime.toFloat() / TURN_DURATION_MS.toFloat()
-                binding.tricklingSandView.setTargetFillLevelCap(progress)
-
+                val timeElapsedSinceTurnStart = (gameState.turnDurationSeconds * 1000L) - millisUntilFinished
+                val progress = timeElapsedSinceTurnStart.toFloat() / (gameState.turnDurationSeconds * 1000L).toFloat()
+                binding.tricklingSandView.setTargetFillLevelCap(progress.coerceIn(0f, 1f))
             }
 
             override fun onFinish() {
-                if (!this@MainActivity.isActive) return // Check activity state
-
-                binding.textViewTimer.text = "Time's up!"
-
-                binding.tricklingSandView.stopTimerEffectAndFill()
-                // Time's up is effectively a mistake, the *server* should handle this.
-                // Client *could* send a "timeout" message, or server detects lack of input.
-                // For simplicity, let client assume it's a mistake locally for immediate feedback,
-                // but rely on server state update for the official outcome.
-                Toast.makeText(this@MainActivity, "Time's up! Sending timeout.", Toast.LENGTH_SHORT).show()
-
-                playMistakeAnimation(MistakeType.LOCAL)
-
-                // OPTIONAL: Send a timeout message to server
-                gameWebSocketClient?.sendPlayerAction("timeout", null)
-
-                // Locally reflect as mistake for immediate UI feedback, server state will correct if needed
-                gameState.recordMistake()
-                updateUI()
-                binding.editTextWordInput.isEnabled = false // Disable input after timeout
-                binding.buttonSubmit.isEnabled = false
-
-                // Wait for server's response (game_state, round_over, or game_over)
-                // Do NOT automatically restart the timer here.
+                if (!this@MainActivity.isActive) return
+                handleTimerFinish()
             }
         }.start()
+        Log.d("MainActivityTimer", "CountDownTimer started with timeLeft: $timeLeftInMillis")
+    }
+
+    private fun handleTimerFinish() {
+        binding.textViewTimer.text = "Time's up!"
+        binding.tricklingSandView.stopTimerEffectAndFill()
+        Toast.makeText(this@MainActivity, "Time's up! Sending timeout.", Toast.LENGTH_SHORT).show()
+        playMistakeAnimation(MistakeType.LOCAL)
+        gameWebSocketClient?.sendPlayerAction("timeout", null)
+        gameState.recordMistake() // Local reflection
+        updateUI()
+        binding.editTextWordInput.isEnabled = false
+        binding.buttonSubmit.isEnabled = false
     }
 
     private fun cancelTimer() {
         countDownTimer?.cancel()
         countDownTimer = null
-        binding.textViewTimer.text = "Time: --s" // Reset timer text
+        binding.textViewTimer.text = "Time: --s"
         binding.textViewTimer.setTextColor(ContextCompat.getColor(this, R.color.timer_default_color))
-
         binding.tricklingSandView.cancelTimerEffect()
+        // Do NOT reset turnEndTimeMillis here unless it's a new round or game over
+        Log.d("MainActivityTimer", "Timer cancelled.")
     }
 
     // --- Keyboard Utils ---
@@ -1409,6 +1505,10 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
             imm?.showSoftInput(binding.editTextWordInput, InputMethodManager.SHOW_IMPLICIT)
         }, 100) // Small delay can sometimes help ensure focus is granted first
+    }
+
+    private fun isTimerActive(): Boolean {
+        return countDownTimer != null
     }
 
     private fun hideKeyboard() {
@@ -1422,11 +1522,25 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         imm?.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
+    override fun onPause() {
+        super.onPause()
+        Log.d("MainActivityTimer", "onPause. Timer active: ${isTimerActive()}")
+        if (isTimerActive() && gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 && !gameState.isGameOver()) {
+            countDownTimer?.cancel() // Stop the ticking
+            isTimerPausedByActivity = true
+            Log.d("MainActivityTimer", "Timer paused by activity. Time left: $timeLeftInMillis. End time: $turnEndTimeMillis")
+        }
+    }
+
     // Lifecycle Management
     override fun onStop() {
         super.onStop()
-        Log.d("MainActivity", "onStop called.")
-        cancelTimer() // Stop timer when activity is not visible
+        Log.d("MainActivityTimer", "onPause. Timer active: ${isTimerActive()}")
+        if (isTimerActive() && gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 && !gameState.isGameOver()) {
+            countDownTimer?.cancel() // Stop the ticking
+            isTimerPausedByActivity = true
+            Log.d("MainActivityTimer", "Timer paused by activity. Time left: $timeLeftInMillis. End time: $turnEndTimeMillis")
+        }
     }
 
     override fun onDestroy() {

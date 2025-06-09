@@ -31,6 +31,7 @@ class TricklingSandView @JvmOverloads constructor(
 
     private var targetFillLevelNormalized: Float = 0f   // Set by MainActivity
     private var currentRenderedFillLevelNormalized: Float = 0f // Interpolated for drawing
+    private var initialFillLevelForResume: Float = 0f
     private val fillInterpolationSpeed: Float = 0.8f // How quickly current catches up to target (0 to 1)
 
     // This will represent the speed at which the fill rises, aiming to complete in `gameTimerDurationMs`
@@ -239,12 +240,20 @@ class TricklingSandView @JvmOverloads constructor(
         }
     }
 
-    fun startTimerEffect(totalDurationSeconds: Float) { // Accept duration
-        Log.d("TricklingSandView", "startTimerEffect called. Duration: $totalDurationSeconds W:$width, H:$height")
-        setGameTimerDuration(totalDurationSeconds) // Set the duration for internal calculation
+    fun startTimerEffect(totalDurationForFullTurnSeconds: Float, actualTimeLeftSeconds: Float) { // Accept duration
+        Log.d("TricklingSandView", "startTimerEffect called. Duration: $totalDurationForFullTurnSeconds W:$width, H:$height")
+        setGameTimerDuration(totalDurationForFullTurnSeconds) // Set the duration for internal calculation
         visibility = View.VISIBLE
-        currentRenderedFillLevelNormalized = 0f
-        targetFillLevelNormalized = 0f
+        val timeElapsedSeconds = totalDurationForFullTurnSeconds - actualTimeLeftSeconds
+        initialFillLevelForResume = if (totalDurationForFullTurnSeconds > 0) {
+            (timeElapsedSeconds / totalDurationForFullTurnSeconds).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        currentRenderedFillLevelNormalized = initialFillLevelForResume
+        targetFillLevelNormalized = initialFillLevelForResume // Start target where current fill is
+
+        Log.d("TricklingSandView", "InitialFillForResume: $initialFillLevelForResume, CurrentRenderedFill: $currentRenderedFillLevelNormalized")
         activeParticles.forEach { it.isActive = false }
         particlePool.addAll(activeParticles)
         activeParticles.clear()
@@ -288,6 +297,7 @@ class TricklingSandView @JvmOverloads constructor(
         visibility = View.GONE
         targetFillLevelNormalized = 0f
         currentRenderedFillLevelNormalized = 0f
+        initialFillLevelForResume = 0f
         activeParticles.forEach { it.isActive = false }
         particlePool.addAll(activeParticles)
         activeParticles.clear()
