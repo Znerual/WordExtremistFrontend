@@ -22,7 +22,8 @@ data class GameState(
     var wordsPlayedThisRoundByPlayer2: MutableList<String> = mutableListOf(),
     var allWordsPlayedThisRoundSet: MutableSet<String> = mutableSetOf(),
     var isWaitingForOpponent: Boolean = true,
-    var turnDurationSeconds: Int = 30
+    var turnDurationSeconds: Int = 30,
+    var lastActionTimestamp: Long = 0L,
 ) {
     fun getCurrentPlayer(): PlayerState {
         return if (currentPlayerTurn == PlayerTurn.PLAYER_1) player1 else player2
@@ -112,6 +113,7 @@ data class GameState(
         currentRound = payload.optInt("round", currentRound)
         language = payload.optString("language", language)
         turnDurationSeconds = payload.optInt("turn_duration_seconds", 30)
+        lastActionTimestamp = (payload.optDouble("last_action_timestamp", 0.0) * 1000).toLong()
         val serverP1Id = payload.optString("player1_server_id")
         val serverP2Id = payload.optString("player2_server_id")
         val serverP1StateJson = payload.optJSONObject("player1_state")
@@ -165,6 +167,7 @@ data class GameState(
 
         // Determine if waiting for opponent
         val gameIsActive = payload.optBoolean("game_active", false) // Server MUST send this
+
         val bothPlayersHaveServerIds = this.player1.serverId.isNotEmpty() && this.player2.serverId.isNotEmpty()
 
         if (gameIsActive && bothPlayersHaveServerIds) {

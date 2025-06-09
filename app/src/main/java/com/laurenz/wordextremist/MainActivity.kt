@@ -166,6 +166,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
             setupGameUIAndListeners()
 
+            sendClientReadyAction()
+
         }
     }
 
@@ -498,7 +500,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             mutableListOf(),
             mutableListOf(),
             mutableSetOf(),
-            true
+            true,
         )
         gameState.resetRoundMistakesAndWords()
         // Assume Player 1 starts initially, server message should confirm/correct this
@@ -584,15 +586,15 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             Log.d("MainActivity_WS", "Message received: $message")
             try {
                 when (message.optString("type")) {
-                    "status" -> handleStatusMessage(message.getJSONObject("payload"))
-                    "game_state" -> handleGameStateUpdate(message.getJSONObject("payload"))
-                    "game_started" -> handleGameStart(message.getJSONObject("payload"))
+                    "game_setup_ready" -> handleGameSetupReady(message.getJSONObject("payload"))
+                    "game_state_reconnect" -> handleReconnect(message.getJSONObject("payload"))
+                    "round_started" -> handleRoundStarted(message.getJSONObject("payload"))
                     "new_round_started" -> handleNewRoundStarted(message.getJSONObject("payload"))
                     "emoji_broadcast" -> handleEmojiBroadcastAction(message.getJSONObject("payload"))
                     "validation_result" -> handleValidationResultFromServer(message.getJSONObject("payload"))
                     "opponent_mistake" -> handleOpponentMistake(message.getJSONObject("payload"))
                     "opponent_turn_ended" -> handleOpponentTurnEnded(message.getJSONObject("payload"))
-                    "opponent_timeout" -> handleOpponentTimeOut(message.getJSONObject("payload"))
+                    "timeout" -> handleTimeOut(message.getJSONObject("payload"))
                     "round_over" -> handleRoundOverFromServer(message.getJSONObject("payload"))
                     "game_over" -> handleGameOverFromServer(message.getJSONObject("payload"))
                     "error" -> handleErrorFromServer(message.optString("message", "Unknown server error"))
@@ -607,6 +609,61 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 Log.e("MainActivity_WS", "Error processing message: ${message}", e)
             }
         }
+    }
+
+    private fun handleGameSetupReady(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling game_setup_ready. UI will wait for client_ready to be sent.")
+        gameState.updateFromJson(payload, ownUserId.toString())
+        fadeInGameUI()
+        updateUI() // Update UI with initial data, input will be disabled.
+    }
+
+    private fun handleReconnect(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling reconnect.")
+        gameState.updateFromJson(payload, ownUserId.toString())
+        isEntryAnimationPlaying = false // Skip animation on reconnect
+        fadeInGameUI()
+        updateUI()
+        // If the reconnected state shows it's our turn, start the timer
+        if (!gameState.isWaitingForOpponent) {
+            handleTurnStart()
+        }
+    }
+
+    private fun handleRoundStarted(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling round_started. The timer is now live!")
+        // Server confirms round start, gives authoritative timestamp
+        gameState.lastActionTimestamp = (payload.optDouble("last_action_timestamp", 0.0) * 1000).toLong()
+        gameState.isWaitingForOpponent = false // Game is officially active
+        updateUI()
+        handleTurnStart()
+    }
+
+    private fun handleNewRoundStarted(payload: JSONObject) {
+        Log.i("MainActivity_WS", "Handling new_round_started.")
+        cancelTimer()
+        binding.tricklingSandView.resetAndHide()
+
+        val prevRoundWinnerId = payload.optString("round_winner_id", null)
+        val prevRoundEndReason = RoundEndReason.fromValue(payload.optString("previous_round_end_reason"))
+        val winnerName = if (prevRoundWinnerId == gameState.player1.serverId) "You" else gameState.player2.name
+
+        gameState.updateFromJson(payload, ownUserId.toString())
+
+        val outcome = when {
+            prevRoundWinnerId == gameState.player1.serverId -> RoundOutcome.WIN
+            prevRoundWinnerId == gameState.player2.serverId -> RoundOutcome.LOSS
+            else -> RoundOutcome.DRAW
+        }
+
+        playRoundOutcomeAnimation(outcome) {
+            // This block executes after the round outcome animation is finished
+            Log.d("MainActivity_WS", "Round outcome animation finished. Sending client_ready for new round.")
+            sendClientReadyAction()
+        }
+
+        updateUI()
+        binding.editTextWordInput.hint = "Round ${gameState.currentRound}! Get ready..."
     }
 
     override fun onClosing(code: Int, reason: String) {
@@ -665,6 +722,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
     }
 
+
     private fun handleStatusMessage(payload: JSONObject) { // Expect payload
         val statusText = payload.optString("message", "Server status...")
         Log.i("MainActivity_WS", "Status from server: $statusText")
@@ -718,71 +776,6 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // binding.buttonBackToMenu.setOnClickListener { ... navigate to LauncherActivity ... }
     }
 
-    // Ensure your handleNewRoundStarted matches what the backend sends ("new_round_started")
-    private fun handleNewRoundStarted(payload: JSONObject) {
-        Log.i("MainActivity_WS", "Handling new_round_started: ${payload.toString(2)}")
-        cancelTimer() // Stop timer from the previous round
-        binding.tricklingSandView.resetAndHide() // Reset sand view for new round
-
-        val prevRoundWinnerId = payload.optString("round_winner_id", null)
-        val prevRoundEndReasonString = payload.optString("previous_round_end_reason", RoundEndReason.UNKNOWN.value)
-        val prevRoundEndReason = RoundEndReason.fromValue(prevRoundEndReasonString)
-
-        // The payload for "new_round_started" is a full game state update
-        currentGameLanguage = payload.optString("language", currentGameLanguage)
-        gameState.updateFromJson(payload, ownUserId.toString()) // Reuses the full state update logic
-        gameState.player1.mistakesInCurrentRound = 0
-        gameState.player2.mistakesInCurrentRound = 0
-
-        val roundWinnerPlayerState = when(prevRoundWinnerId) {
-            gameState.player1.serverId -> gameState.player1
-            gameState.player2.serverId -> gameState.player2
-            else -> null
-        }
-        val winnerName = roundWinnerPlayerState?.name ?: "No one"
-        // gameState.currentRound is now the NEW round number due to updateFromJson
-
-
-
-        val messageToast = if (gameState.currentRound > 1) { // Only show for rounds after the first
-            when(prevRoundEndReason) {
-                RoundEndReason.DOUBLE_TIMEOUT -> {
-                    if (roundWinnerPlayerState == gameState.player1) {
-                        "You won Round ${gameState.currentRound - 1} (Double Timeout)!"
-                    } else {
-                        "$winnerName wins Round ${gameState.currentRound - 1} (Double Timeout)!"
-                    }
-                }
-                RoundEndReason.TIMEOUT_MAX_MISTAKES -> "$winnerName wins Round ${gameState.currentRound - 1} (Opponent max timeouts)!"
-                RoundEndReason.REPEATED_WORD_MAX_MISTAKES -> "$winnerName wins Round ${gameState.currentRound - 1} (Opponent max repeated words)!"
-                RoundEndReason.INVALID_WORD_MAX_MISTAKES -> "$winnerName wins Round ${gameState.currentRound - 1} (Opponent max invalid words)!"
-                else -> "$winnerName wins Round ${gameState.currentRound - 1}!"
-            }
-        } else {
-            "Round ${gameState.currentRound} starting!"
-        }
-        Toast.makeText(this, messageToast, Toast.LENGTH_LONG).show()
-
-        // Determine outcome for animation (based on previous round)
-        val outcomeForAnimation: RoundOutcome = if (gameState.currentRound > 1) {
-            when {
-                roundWinnerPlayerState == gameState.player1 -> RoundOutcome.WIN
-                roundWinnerPlayerState == gameState.player2 -> RoundOutcome.LOSS
-                else -> RoundOutcome.DRAW // Or handle null winnerId as draw/special case
-            }
-        } else {
-            RoundOutcome.DRAW // No outcome for the first round start animation
-        }
-
-        if (gameState.currentRound > 1) { // Only play outcome animation after first round
-            playRoundOutcomeAnimation(outcomeForAnimation)
-        }
-
-        updateUI()
-        binding.editTextWordInput.hint = "Round ${gameState.currentRound}!"
-        handleTurnStart()
-        setEmojiButtonsEnabled(false)
-    }
 
     private fun handleGameStateUpdate(payload: JSONObject) {
         Log.d("MainActivity_WS", "Handling game state update: $payload")
@@ -850,19 +843,15 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             animateWordToBox(word, binding.textViewPlayer1PlayedWords, true)
             // Server will send a game_state update to switch turn
             gameState.switchTurn()
-            updateUI() // Update UI to show waiting state and disable input
+
         } else {
             Toast.makeText(this, "'$word' is not valid. Mistake!", Toast.LENGTH_LONG).show()
             gameState.recordMistake() // Record mistake for local player (player 1)
             updateUI() // Show mistake count increase
 
             playMistakeAnimation(MistakeType.LOCAL)
-
-            // Server state update will follow if round ends. If not, it's still our turn.
-            if (!gameState.isRoundOver()) { // Check based on local state (server might send round_over msg too)
-                startNewTurnTimer() // Restart timer for another chance
-            }
         }
+        updateUI()
     }
 
     private fun handleOpponentTurnEnded(payload: JSONObject) {
@@ -900,34 +889,37 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         }
     }
 
-    private fun handleOpponentTimeOut(payload: JSONObject) {
+    private fun handleTimeOut(payload: JSONObject) {
         Log.i("MainActivity_WS", "Handling opponent timeout: $payload")
         try {
-            gameState.player2.mistakesInCurrentRound++
-            //gameState.switchTurn()
+            // --- MODIFIED: Read from "player_id" field ---
+            val timedOutPlayerId = payload.getString("player_id")
 
-            playMistakeAnimation(MistakeType.OPPONENT)
+            // Update the game state with the authoritative data from the server first.
+            // This will correctly update mistake counts and scores for whoever timed out.
+            gameState.updateFromJson(payload, ownUserId.toString())
 
-            // Server has switched the turn to us.
-            val currentPlayerServerId = payload.getString("current_player_id")
-            if (currentPlayerServerId == gameState.player1.serverId) {
-                gameState.currentPlayerTurn = PlayerTurn.PLAYER_1
-                gameState.isWaitingForOpponent = false
+            if (timedOutPlayerId == ownUserId.toString()) {
+                // It was ME who timed out.
+                Log.w("MainActivity_WS", "Confirmed: Local player timed out.")
+                Toast.makeText(this, "You ran out of time!", Toast.LENGTH_SHORT).show()
+                playMistakeAnimation(MistakeType.LOCAL)
             } else {
-                Log.e("MainActivity_WS", "Opponent timed out, but server says it's still opponent's turn. SID: $currentPlayerServerId")
-                gameState.currentPlayerTurn = PlayerTurn.PLAYER_2 // Fallback, should not happen
-                gameState.isWaitingForOpponent = true
+                // It was the OPPONENT who timed out.
+                Log.i("MainActivity_WS", "Confirmed: Opponent timed out.")
+                Toast.makeText(this, "${gameState.player2.name} timed out!", Toast.LENGTH_SHORT).show()
+                playMistakeAnimation(MistakeType.OPPONENT)
             }
 
-            updateUI()
-            handleTurnStart()
+            updateUI() // Refresh UI based on the new state from updateFromJson
+
+            // If the game is not over and it's now our turn, start the timer.
+            if (!gameState.isGameOver() && gameState.currentPlayerTurn == PlayerTurn.PLAYER_1) {
+                handleTurnStart()
+            }
+
         } catch (e: JSONException) {
-            Log.e("MainActivity_WS", "Error parsing opponent_timeout payload", e)
-        } catch (e: java.lang.Exception) {
-            Log.e(
-                "MainActivity_WS",
-                "Error processing opponent_timeout message: $payload", e
-            )
+            Log.e("MainActivity_WS", "Error parsing turn_timeout payload", e)
         }
 
 
@@ -1019,6 +1011,12 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         setEmojiButtonsEnabled(false)
         showReturnToMenuButton()
         // TODO: Add a "Play Again" or "Back to Menu" button visibility toggle here
+    }
+
+    private fun sendClientReadyAction() {
+        Log.i("MainActivity_WS", "Client is ready. Sending 'client_ready' to server.")
+        binding.editTextWordInput.hint = "Waiting for opponent..."
+        gameWebSocketClient?.sendPlayerAction("client_ready", null)
     }
 
     override fun onResume() {
@@ -1308,7 +1306,11 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
 
     // --- Turn Handling ---
     private fun handleTurnStart() {
-        if (!gameHasActuallyStarted) return
+        if (gameState.isGameOver() || gameState.isWaitingForOpponent || gameState.currentPlayerTurn != PlayerTurn.PLAYER_1) {
+            cancelTimer() // Not our turn, ensure timer is off
+            updateUI()
+            return
+        }
         if (gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 && !gameState.isWaitingForOpponent && !gameState.isGameOver()) {
             updateUI() // Ensure UI reflects it's our turn
 
@@ -1460,7 +1462,9 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 timeLeftInMillis = millisUntilFinished // Update the remaining time
                 val secondsLeft = (millisUntilFinished + 999) / 1000
                 binding.textViewTimer.text = "Time: ${secondsLeft}s"
-                // ... (color change logic for timer text) ...
+                if (secondsLeft <= 5) {
+                    binding.textViewTimer.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.timer_critical))
+                }
 
                 val timeElapsedSinceTurnStart = (gameState.turnDurationSeconds * 1000L) - millisUntilFinished
                 val progress = timeElapsedSinceTurnStart.toFloat() / (gameState.turnDurationSeconds * 1000L).toFloat()
@@ -1480,7 +1484,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding.tricklingSandView.stopTimerEffectAndFill()
         Toast.makeText(this@MainActivity, "Time's up! Sending timeout.", Toast.LENGTH_SHORT).show()
         playMistakeAnimation(MistakeType.LOCAL)
-        gameWebSocketClient?.sendPlayerAction("timeout", null)
+        // gameWebSocketClient?.sendPlayerAction("timeout", null)
         gameState.recordMistake() // Local reflection
         updateUI()
         binding.editTextWordInput.isEnabled = false
@@ -1669,7 +1673,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         animatorSet.start()
     }
 
-    private fun playRoundOutcomeAnimation(outcome: RoundOutcome) {
+    private fun playRoundOutcomeAnimation(outcome: RoundOutcome, onAnimationEnd: () -> Unit = {}) {
         val animationView = binding.textViewRoundOutcomeAnimation
 
         val text: String
@@ -1766,6 +1770,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                 animationView.scaleY = 1f
                 animationView.translationX = 0f
                 animationView.translationY = 0f
+                onAnimationEnd()
             }
         })
         mainSequence.start()
