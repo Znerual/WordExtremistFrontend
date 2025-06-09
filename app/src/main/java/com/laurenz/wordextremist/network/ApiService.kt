@@ -18,7 +18,7 @@ import retrofit2.http.Query
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.Part
-
+import retrofit2.http.Path
 
 
 interface ApiService {
@@ -59,6 +59,11 @@ interface ApiService {
     @PATCH("api/v1/auth/users/me/optional-info")
     suspend fun updateUserOptionalInfo(
         @Body updateRequest: UserOptionalInfoUpdateRequest
+    ): Response<UserPublic>
+
+    @GET("api/v1/auth/users/others/{user_id}")
+    suspend fun getUserProfile(
+        @Path("user_id") userId: Int
     ): Response<UserPublic>
 
     @POST("api/v1/auth/device-login") // New endpoint
