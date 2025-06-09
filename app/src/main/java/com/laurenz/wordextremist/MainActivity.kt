@@ -227,14 +227,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.i("MainActivity", "Processing buffered initial payload of type: $type")
         try {
             when (type) {
-                "game_started" -> {
-                    currentGameLanguage = actualPayload.optString("language", currentGameLanguage)
-                    handleGameStateUpdate(actualPayload) // GameStart uses this for full state
-                    if (gameState.isWaitingForOpponent && (gameState.currentPlayerTurn == PlayerTurn.PLAYER_1 || gameState.player1.serverId.isNotEmpty())) {
-                        Log.w("MainActivity", "After buffered game_start, still waiting. SID: ${gameState.player1.serverId}")
-                    } else {
-                        Log.i("MainActivity", "Buffered Game started successfully!")
-                    }
+                "game_setup_ready" -> {
+                    handleGameSetupReady(actualPayload)
                 }
                 "game_state_reconnect" -> {
                     handleGameStateUpdate(actualPayload) // Reconnect also uses this
@@ -571,7 +565,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         if (isEntryAnimationPlaying) {
             // Buffer critical initial messages like game_started or game_state_reconnect
             val type = message.optString("type")
-            if (type == "game_started" || type == "game_state_reconnect" || type == "status") {
+            if (type == "game_setup_ready" || type == "game_state_reconnect" || type == "status") {
                 Log.d("MainActivity_WS", "Buffering message of type '$type' received during VS animation.")
                 initialGamePayload = message // Store the latest critical message
                 return // Don't process further until animation ends
@@ -634,6 +628,8 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         Log.i("MainActivity_WS", "Handling round_started. The timer is now live!")
         // Server confirms round start, gives authoritative timestamp
         gameState.lastActionTimestamp = (payload.optDouble("last_action_timestamp", 0.0) * 1000).toLong()
+
+
         gameState.isWaitingForOpponent = false // Game is officially active
         updateUI()
         handleTurnStart()
