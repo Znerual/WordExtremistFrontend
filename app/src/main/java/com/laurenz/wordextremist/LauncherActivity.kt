@@ -2,7 +2,6 @@
 package com.laurenz.wordextremist
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -59,13 +58,13 @@ class LauncherActivity : AppCompatActivity() {
 
     private lateinit var tutorialManager: TutorialManager
     private lateinit var tutorialGameLauncher: ActivityResultLauncher<Intent>
-    private lateinit var tutorialProfileLauncher: ActivityResultLauncher<Intent>
+    private lateinit var editProfileResultLauncher: ActivityResultLauncher<Intent>
     private lateinit var tutorialVaultLauncher: ActivityResultLauncher<Intent>
     companion object {
         var isTutorialInProgress = false
     }
 
-    private lateinit var editProfileResultLauncher: ActivityResultLauncher<Intent>
+
 
     private var localClientIdentifier: String? = null // For device login
     private var currentUserDbId: Int? = null // Store current user's DB ID
@@ -169,7 +168,7 @@ class LauncherActivity : AppCompatActivity() {
         }
 
         // Register launchers for other activities in the tutorial
-        tutorialProfileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        editProfileResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             showTutorialOverlay()
             tutorialManager.advance()
         }
@@ -194,7 +193,7 @@ class LauncherActivity : AppCompatActivity() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val tutorialCompleted = prefs.getBoolean(PREF_TUTORIAL_COMPLETED, false)
 
-        if (!tutorialCompleted && !isTutorialInProgress || true) {
+        if (!tutorialCompleted && !isTutorialInProgress) {
             binding.root.post {
                 startTutorial()
             }
@@ -231,8 +230,10 @@ class LauncherActivity : AppCompatActivity() {
             ) {
                 manager ->
                 hideTutorialOverlay() // Hide before launching
-                val intent = Intent(this, EditProfileActivity::class.java)
-                tutorialProfileLauncher.launch(intent)
+                val intent = Intent(this, EditProfileActivity::class.java).apply {
+                    putExtra(EditProfileActivity.EXTRA_IS_TUTORIAL_MODE, true)
+                }
+                editProfileResultLauncher.launch(intent)
                 false // <- IMPORTANT: Action handles flow
             },
             TutorialStep(
@@ -629,7 +630,7 @@ class LauncherActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         isActivityResumed = true // SET FLAG
-        Log.d("LauncherActivity", "onResume: Called. parentWidth=$parentViewWidth, listEmpty=${animatedElementsList.isEmpty()}, isActivityDestroyed=$isDestroyed") // MODIFIED LOG
+        Log.d("LauncherActivity", "onResume: Called. parentWidth=$parentViewWidth, listEmpty=${animatedElementsList.isEmpty()}, isActivityDestroyed=$isDestroyed, isTutorialInProgress=$isTutorialInProgress") // MODIFIED LOG
 
         if (isDestroyed || isFinishing) {
             Log.w("LauncherActivity", "onResume: Activity is destroyed or finishing. Bailing out of animation start.")

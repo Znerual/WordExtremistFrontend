@@ -27,6 +27,11 @@ import java.io.FileOutputStream
 import java.util.Calendar
 import android.widget.ArrayAdapter
 import java.util.Locale
+import android.os.Handler
+import android.os.Looper
+import androidx.activity.OnBackPressedCallback
+import com.laurenz.wordextremist.ui.tutorial.TutorialManager
+import com.laurenz.wordextremist.ui.tutorial.TutorialStep
 
 data class CountryItem(val code: String, val name: String) {
     // This will be displayed in the dropdown
@@ -69,6 +74,14 @@ class EditProfileActivity : AppCompatActivity() {
     private lateinit var countries: List<CountryItem>
     private lateinit var languages: List<LanguageItem>
 
+    // --- ADD TUTORIAL PROPERTIES ---
+    private var isTutorialMode = false
+    private lateinit var tutorialManager: TutorialManager
+
+    // --- ADD COMPANION OBJECT ---
+    companion object {
+        const val EXTRA_IS_TUTORIAL_MODE = "edit_profile_tutorial_mode"
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,12 +89,62 @@ class EditProfileActivity : AppCompatActivity() {
         binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        isTutorialMode = intent.getBooleanExtra(EXTRA_IS_TUTORIAL_MODE, false)
+
         setupListeners()
         initImagePicker()
         setupDatePicker()
         setupDropdowns()
         loadUserProfile()
+
+        if (isTutorialMode) {
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    tutorialManager.end(runListener = false) // Clean up overlay
+                    setResult(Activity.RESULT_OK) // Signal completion
+                    finish()
+                }
+            })
+
+            binding.root.post {
+                startTutorialSequence()
+            }
+        }
     }
+
+    private fun startTutorialSequence() {
+        val steps = listOf(
+            TutorialStep(null, "This is your profile page. Let's take a quick tour.") { true },
+
+            TutorialStep(R.id.buttonChangePicture, "You can tap here to change your profile picture.") { true },
+
+            TutorialStep(R.id.textInputLayoutUsername, "This is where you can set your unique username.") { manager ->
+                // Briefly focus the EditText to make it more obvious
+                binding.textInputEditTextUsername.requestFocus()
+                // Use a short delay before advancing to let the user see the focus
+                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 1500)
+                false // Tell manager to wait
+            },
+
+            TutorialStep(R.id.scrollView, "Scroll down to see more options like your country and preferred language for games.") { true },
+
+            TutorialStep(R.id.buttonSaveChanges, "When you're done making changes, tap here to save them.") {
+                saveChanges()
+                true
+            },
+
+            TutorialStep(null, "That's it! Tap anywhere to go back to the main menu.") { manager ->
+                setResult(Activity.RESULT_OK)
+                manager.end()
+                finish()
+                false
+            }
+        )
+
+        tutorialManager = TutorialManager(this, steps)
+        tutorialManager.start()
+    }
+
 
     private fun setupDropdowns() {
         // --- Populate Country Dropdown ---

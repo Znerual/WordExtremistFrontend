@@ -98,6 +98,14 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initializePlaceholderGame() // Initialize with placeholders
+        updatePlaceholdersUI() // Setup default text
+        setupBackButtonHandler()
+        setupPlayerInfoClickListeners()
+        setupEmojiButtonListeners()
+        setupInputListeners()
+        setupSentenceCardToggleListener()
+
         isTutorialMode = intent.getBooleanExtra(EXTRA_IS_TUTORIAL_MODE, false)
         if (isTutorialMode) {
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -179,13 +187,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
         // Also remove the standalone requestServerSideAccess() call.
         // Initialize Game State (basic placeholder)
         // The actual initial state should ideally come from the server via WebSocket upon connection
-        initializePlaceholderGame() // Initialize with placeholders
-        updatePlaceholdersUI() // Setup default text
-        setupBackButtonHandler()
-        setupPlayerInfoClickListeners()
-        setupEmojiButtonListeners()
-        setupInputListeners()
-        setupSentenceCardToggleListener()
+
 
 
 
@@ -252,6 +254,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
                         Log.d("TutorialManager", "Text changed: ${s.toString()}")
                         if (s.toString().trim().equals("vibrant", ignoreCase = true)) {
                             tutorialTextWatcher = null
+
                             manager.advance()
                         }
                     }
@@ -261,13 +264,7 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             },
             // Step 3: Ask user to submit
             TutorialStep(R.id.buttonSubmit, "Perfect! Now tap SUBMIT to play your word.") { manager ->
-//                tutorialTextWatcher?.let {
-//                    binding.editTextWordInput.removeTextChangedListener(it)
-//                    tutorialTextWatcher = null // Clear the reference
-//                }
-//
-//                binding.buttonSubmit.isEnabled = true
-//                hideKeyboard()
+
                 handleTutorialSubmit(manager)
                 false
 
@@ -278,28 +275,29 @@ class MainActivity : AppCompatActivity(), GameWebSocketClient.GameWebSocketListe
             TutorialStep(R.id.sentenceCard, "Tap the sentence card to see all words played in this round.") { manager ->
                 binding.sentenceCard.performClick()
                 // Wait for view to appear, then go to next step
-                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 300)
-                false
-                                                                                                            },
-            // Step 6: Explain the words card
-            TutorialStep(R.id.wordsPlayedCard, "This list shows all valid words. Now, watch the opponent's turn.") { manager ->
+                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 50)
+                false },
+            // Step 6: Highlight word list
+            TutorialStep(R.id.wordsPlayedCard, "This list shows all valid words.") { true },
+            // Step 7: Explain the words card
+            TutorialStep(null, "Now, watch the opponent's turn.") { manager ->
                 // Simulate opponent play
                 Handler(Looper.getMainLooper()).postDelayed({
                     gameState.recordValidWord("lifeless", PlayerTurn.PLAYER_2)
                     animateWordToBox("lifeless", binding.textViewPlayer2PlayedWords, false)
                     updateUI()
                     Toast.makeText(this, "RivalBot played 'lifeless'!", Toast.LENGTH_SHORT).show()
-                    manager.advance() // Go to Step 7
-                }, 1500)
+                    manager.advance() // Go to Step 8
+                }, 50)
                 false
             },
-            // Step 7: Explain toggling the card off
+            // Step 8: Explain toggling the card off
             TutorialStep(R.id.sentenceCard, "You can tap the sentence card again to hide the list.") { manager ->
                 binding.sentenceCard.performClick()
-                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 300)
+                Handler(Looper.getMainLooper()).postDelayed({ manager.advance() }, 50)
                 false
             },
-            // Step 8: Final step for this activity
+            // Step 9: Final step for this activity
             TutorialStep(null, "Practice complete! Tap anywhere to continue.") { manager ->
                 setResult(Activity.RESULT_OK)
                 manager.end()
